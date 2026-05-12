@@ -55,7 +55,7 @@ async function getAIResponse(phoneNumber, userMessage) {
 
   } catch (error) {
     console.error('Error Claude API:', error.message);
-    return 'Disculpe, tuve un problema técnico. Un asesor lo atenderá en breve 🔧';
+    return 'Disculpe, tuve un problema tecnico. Un asesor lo atendera en breve.';
   }
 }
 
