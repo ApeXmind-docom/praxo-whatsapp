@@ -47,7 +47,7 @@ async function getAIResponse(phoneNumber, userMessage) {
       content: assistantMessage,
     });
 
-    if (assistantMessage.includes('CASO ESCALADO — NOVA')) {
+    if (assistantMessage.includes('CASO ESCALADO')) {
       escalatedChats[phoneNumber] = true;
     }
 
