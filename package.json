@@ -7,34 +7,17 @@
     "start": "node src/index.js"
   },
   "dependencies": {
-    "whatsapp-web.js": "^1.23.0",
+    "@whiskeysockets/baileys": "^6.7.0",
     "express": "^4.18.2",
     "socket.io": "^4.6.1",
     "@anthropic-ai/sdk": "^0.24.0",
     "qrcode": "^1.5.3",
     "dotenv": "^16.3.1",
-    "fs-extra": "^11.1.1"
+    "fs-extra": "^11.1.1",
+    "pino": "^8.0.0",
+    "pino-pretty": "^10.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-  "nixpacks": {
-    "aptPkgs": [
-      "chromium",
-      "chromium-driver",
-      "libglib2.0-0",
-      "libnss3",
-      "libatk1.0-0",
-      "libatk-bridge2.0-0",
-      "libcups2",
-      "libdrm2",
-      "libxkbcommon0",
-      "libxcomposite1",
-      "libxdamage1",
-      "libxfixes3",
-      "libxrandr2",
-      "libgbm1",
-      "libasound2"
-    ]
   }
 }
