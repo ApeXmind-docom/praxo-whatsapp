@@ -34,7 +34,7 @@ async function getAIResponse(phoneNumber, userMessage) {
 
   try {
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: model: 'claude-sonnet-4-5',
       max_tokens: 1000,
       system: NOVA_PROMPT,
       messages: conversations[phoneNumber],
