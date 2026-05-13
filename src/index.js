@@ -268,6 +268,6 @@ httpServer.listen(PORT, async () => {
   console.log('🚀 PRAXO arrancado en puerto ' + PORT);
   console.log('🖥️  Panel: http://localhost:' + PORT);
   await connectDB();
-  await connectWhatsApp('numero1');
-  await connectWhatsApp('numero2');
+   connectWhatsApp('numero1');
+   connectWhatsApp('numero2');
 });
