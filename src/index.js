@@ -15,55 +15,71 @@ const io = new Server(httpServer);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
-let qrImageData = null;
-let isConnected = false;
-let clientPhone = null;
 const messageLog = [];
-let sock = null;
 
-async function connectWhatsApp() {
-  // Sesión guardada en disco persistente de Render (/data)
-  const { state, saveCreds } = await useMultiFileAuthState('/data/session');
+// Estado de cada número
+const accounts = {
+  numero1: {
+    label: 'Asesor 1',
+    sessionPath: '/data/session1',
+    sock: null,
+    isConnected: false,
+    clientPhone: null,
+    qrImageData: null,
+  },
+  numero2: {
+    label: 'Asesor 2',
+    sessionPath: '/data/session2',
+    sock: null,
+    isConnected: false,
+    clientPhone: null,
+    qrImageData: null,
+  },
+};
+
+async function connectWhatsApp(accountKey) {
+  const account = accounts[accountKey];
+  const { state, saveCreds } = await useMultiFileAuthState(account.sessionPath);
   const { version } = await fetchLatestBaileysVersion();
 
-  sock = makeWASocket({
+  account.sock = makeWASocket({
     version,
     auth: state,
     printQRInTerminal: false,
     logger: require('pino')({ level: 'silent' }),
   });
 
-  sock.ev.on('creds.update', saveCreds);
+  account.sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', async (update) => {
+  account.sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      qrImageData = await qrcode.toDataURL(qr);
-      isConnected = false;
-      io.emit('qr', qrImageData);
-      io.emit('status', { connected: false, message: 'Escanea el QR con WhatsApp' });
-      console.log('📱 QR generado');
+      account.qrImageData = await qrcode.toDataURL(qr);
+      account.isConnected = false;
+      io.emit('qr_' + accountKey, account.qrImageData);
+      io.emit('status_' + accountKey, { connected: false, message: 'Escanea el QR - ' + account.label });
+      console.log('📱 QR generado [' + account.label + ']');
     }
 
     if (connection === 'close') {
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log('Conexion cerrada. Reconectando:', shouldReconnect);
-      isConnected = false;
-      io.emit('status', { connected: false, message: 'Desconectado' });
-      if (shouldReconnect) setTimeout(connectWhatsApp, 3000);
+      console.log('[' + account.label + '] Conexion cerrada. Reconectando:', shouldReconnect);
+      account.isConnected = false;
+      io.emit('status_' + accountKey, { connected: false, message: 'Desconectado' });
+      if (shouldReconnect) setTimeout(() => connectWhatsApp(accountKey), 3000);
     }
 
     if (connection === 'open') {
-      console.log('✅ WhatsApp conectado');
-      isConnected = true;
-      qrImageData = null;
-      clientPhone = sock.user?.id?.split(':')[0] || 'Conectado';
-      io.emit('status', { connected: true, phone: clientPhone, message: 'NOVA activa' });
+      console.log('✅ WhatsApp conectado [' + account.label + ']');
+      account.isConnected = true;
+      account.qrImageData = null;
+      account.clientPhone = account.sock.user?.id?.split(':')[0] || 'Conectado';
+      io.emit('status_' + accountKey, { connected: true, phone: account.clientPhone, message: 'NOVA activa - ' + account.label });
     }
   });
 
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+  account.sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
 
     for (const message of messages) {
@@ -79,22 +95,26 @@ async function connectWhatsApp() {
 
       if (!messageText) continue;
 
+      // Prefijo para separar conversaciones por número
+      const conversationId = accountKey + '_' + phoneNumber;
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
-      console.log('📩 [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
+      console.log('📩 [' + account.label + '] [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
 
       await saveClient({
         phone: phoneNumber,
         lastMessage: messageText,
         lastSeen: new Date(),
         status: 'active',
-        client: process.env.CLIENT_NAME || 'Refriadvanced'
+        client: process.env.CLIENT_NAME || 'Refriadvanced',
+        account: account.label,
       });
 
       await saveMessage({
         phone: phoneNumber,
         message: messageText,
         type: 'incoming',
-        client: process.env.CLIENT_NAME || 'Refriadvanced'
+        client: process.env.CLIENT_NAME || 'Refriadvanced',
+        account: account.label,
       });
 
       const incomingLog = {
@@ -104,27 +124,29 @@ async function connectWhatsApp() {
         type: 'incoming',
         timestamp,
         date: new Date().toLocaleDateString('es-CO'),
+        account: account.label,
       };
       messageLog.unshift(incomingLog);
       if (messageLog.length > 200) messageLog.pop();
       io.emit('new_message', incomingLog);
 
-      const novaResponse = await getAIResponse(phoneNumber, messageText);
+      const novaResponse = await getAIResponse(conversationId, messageText);
 
       if (novaResponse === null) {
-        console.log('🔇 [' + phoneNumber + '] Chat escalado - NOVA en silencio');
-        io.emit('escalated_chat', { phone: phoneNumber, timestamp });
+        console.log('🔇 [' + account.label + '] [' + phoneNumber + '] Chat escalado - NOVA en silencio');
+        io.emit('escalated_chat', { phone: phoneNumber, timestamp, account: account.label });
         continue;
       }
 
       try {
-        await sock.sendMessage(message.key.remoteJid, { text: novaResponse });
+        await account.sock.sendMessage(message.key.remoteJid, { text: novaResponse });
 
         await saveMessage({
           phone: phoneNumber,
           message: novaResponse,
           type: 'outgoing',
-          client: process.env.CLIENT_NAME || 'Refriadvanced'
+          client: process.env.CLIENT_NAME || 'Refriadvanced',
+          account: account.label,
         });
 
         const outgoingLog = {
@@ -135,6 +157,7 @@ async function connectWhatsApp() {
           timestamp: new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' }),
           date: new Date().toLocaleDateString('es-CO'),
           escalated: novaResponse.includes('CASO ESCALADO'),
+          account: account.label,
         };
         messageLog.unshift(outgoingLog);
         io.emit('new_message', outgoingLog);
@@ -145,18 +168,25 @@ async function connectWhatsApp() {
             lastMessage: messageText,
             lastSeen: new Date(),
             status: 'escalated',
-            client: process.env.CLIENT_NAME || 'Refriadvanced'
+            client: process.env.CLIENT_NAME || 'Refriadvanced',
+            account: account.label,
           });
 
           io.emit('new_escalation', {
             phone: phoneNumber,
             timestamp: outgoingLog.timestamp,
             preview: messageText.substring(0, 80),
+            account: account.label,
           });
 
-          if (process.env.ADMIN_PHONE && sock) {
+          // Notificar al asesor correspondiente
+          const adminPhone = accountKey === 'numero1'
+            ? process.env.ADMIN_PHONE
+            : process.env.ADMIN_PHONE_2;
+
+          if (adminPhone && account.sock) {
             try {
-              await sock.sendMessage(process.env.ADMIN_PHONE + '@s.whatsapp.net', {
+              await account.sock.sendMessage(adminPhone + '@s.whatsapp.net', {
                 text: '🚨 *NOVA - Caso escalado*\n\n📱 Cliente: ' + phoneNumber + '\n💬 Mensaje: "' + messageText.substring(0, 100) + '"\n\n⚠️ Requiere atencion del asesor.\nEscribe *NOVA* en el chat para reactivar.'
               });
             } catch (e) {
@@ -171,11 +201,20 @@ async function connectWhatsApp() {
   });
 }
 
+// ── API ──────────────────────────────────────────────────────────────────────
+
 app.get('/api/status', (req, res) => {
   res.json({
-    connected: isConnected,
-    phone: clientPhone,
-    qr: qrImageData,
+    numero1: {
+      connected: accounts.numero1.isConnected,
+      phone: accounts.numero1.clientPhone,
+      qr: accounts.numero1.qrImageData,
+    },
+    numero2: {
+      connected: accounts.numero2.isConnected,
+      phone: accounts.numero2.clientPhone,
+      qr: accounts.numero2.qrImageData,
+    },
     totalConversations: Object.keys(getConversations()).length,
     escalatedChats: Object.entries(getEscalatedChats()).filter(([,v]) => v).map(([k]) => k),
   });
@@ -212,12 +251,16 @@ app.post('/api/clear/:phone', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  socket.emit('status', {
-    connected: isConnected,
-    phone: clientPhone,
-    message: isConnected ? 'NOVA activa' : 'Esperando conexion...',
-  });
-  if (qrImageData && !isConnected) socket.emit('qr', qrImageData);
+  for (const [key, account] of Object.entries(accounts)) {
+    socket.emit('status_' + key, {
+      connected: account.isConnected,
+      phone: account.clientPhone,
+      message: account.isConnected ? 'NOVA activa - ' + account.label : 'Esperando conexion...',
+    });
+    if (account.qrImageData && !account.isConnected) {
+      socket.emit('qr_' + key, account.qrImageData);
+    }
+  }
 });
 
 const PORT = process.env.PORT || 3000;
@@ -225,5 +268,6 @@ httpServer.listen(PORT, async () => {
   console.log('🚀 PRAXO arrancado en puerto ' + PORT);
   console.log('🖥️  Panel: http://localhost:' + PORT);
   await connectDB();
-  await connectWhatsApp();
+  await connectWhatsApp('numero1');
+  await connectWhatsApp('numero2');
 });
