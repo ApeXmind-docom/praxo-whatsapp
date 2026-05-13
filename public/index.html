@@ -20,6 +20,7 @@
   }
   .brand-logo { font-size:22px; font-weight:900; color:#fff; letter-spacing:2px; }
   .brand-tag { font-size:10px; color:var(--cyan); letter-spacing:3px; font-weight:600; }
+  .status-badges { display:flex; gap:10px; flex-wrap:wrap; }
   .status-badge {
     display:flex; align-items:center; gap:8px; padding:6px 14px;
     border-radius:20px; background:var(--card); border:1px solid var(--border);
@@ -29,13 +30,15 @@
   .dot.connected { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 2s infinite; }
   .dot.disconnected { background:var(--red); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .layout { display:grid; grid-template-columns:280px 1fr; min-height:calc(100vh - 60px); }
+  .layout { display:grid; grid-template-columns:300px 1fr; min-height:calc(100vh - 60px); }
   .sidebar { background:var(--surface); border-right:1px solid var(--border); padding:20px; overflow-y:auto; }
   .sidebar-title { font-size:10px; color:var(--muted); letter-spacing:3px; margin-bottom:14px; font-weight:600; }
-  .qr-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; text-align:center; margin-bottom:16px; }
-  .qr-card img { width:160px; height:160px; border-radius:8px; margin:12px auto; display:block; }
-  .connected-info { background:var(--card); border:1px solid #00E67633; border-radius:12px; padding:16px; margin-bottom:16px; text-align:center; }
-  .connected-info .phone { font-size:16px; font-weight:700; color:var(--green); }
+  .account-block { margin-bottom:20px; }
+  .account-label { font-size:11px; font-weight:700; color:var(--cyan); margin-bottom:8px; padding:4px 8px; background:var(--card); border-radius:6px; display:inline-block; }
+  .qr-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; margin-bottom:10px; }
+  .qr-card img { width:140px; height:140px; border-radius:8px; margin:10px auto; display:block; }
+  .connected-info { background:var(--card); border:1px solid #00E67633; border-radius:12px; padding:14px; margin-bottom:10px; text-align:center; }
+  .connected-info .phone { font-size:15px; font-weight:700; color:var(--green); }
   .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
   .stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 12px; text-align:center; }
   .stat-number { font-size:26px; font-weight:900; color:var(--purple); }
@@ -58,6 +61,7 @@
   .conv-card.escalated { border-color:var(--red); background:#FF2D5508; }
   .conv-phone { font-size:13px; font-weight:700; color:var(--cyan); margin-bottom:4px; }
   .conv-preview { font-size:11px; color:var(--muted); margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .conv-account { font-size:9px; color:var(--purple); font-weight:700; margin-bottom:6px; }
   .badge { font-size:9px; font-weight:700; padding:2px 8px; border-radius:10px; }
   .badge-msgs { background:#6C00FF22; color:var(--purple); border:1px solid #6C00FF44; }
   .badge-escalated { background:#FF2D5522; color:var(--red); border:1px solid #FF2D5544; }
@@ -65,7 +69,7 @@
   .log-container { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
   .log-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
   .log-scroll { max-height:420px; overflow-y:auto; }
-  .log-item { padding:10px 18px; border-bottom:1px solid var(--border); display:grid; grid-template-columns:100px 120px 1fr 60px; gap:12px; font-size:11px; }
+  .log-item { padding:10px 18px; border-bottom:1px solid var(--border); display:grid; grid-template-columns:100px 120px 1fr 80px; gap:12px; font-size:11px; }
   .log-item.incoming { border-left:3px solid var(--cyan); }
   .log-item.outgoing { border-left:3px solid var(--purple); }
   .log-item.escalated-msg { border-left:3px solid var(--red); }
@@ -90,16 +94,24 @@
   .empty { text-align:center; padding:40px; color:var(--muted); font-size:13px; }
   .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; font-size:11px; font-weight:700; cursor:pointer; }
   .btn-cyan { background:var(--cyan); color:#000; }
+  .divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
 </style>
 </head>
-<body><div class="header">
+<body>
+<div class="header">
   <div>
     <div class="brand-logo">PRAXO</div>
     <div class="brand-tag">PANEL DE CONTROL · NOVA ❄️</div>
   </div>
-  <div class="status-badge">
-    <div class="dot disconnected" id="statusDot"></div>
-    <span id="statusText">Conectando...</span>
+  <div class="status-badges">
+    <div class="status-badge">
+      <div class="dot disconnected" id="statusDot1"></div>
+      <span id="statusText1">Asesor 1...</span>
+    </div>
+    <div class="status-badge">
+      <div class="dot disconnected" id="statusDot2"></div>
+      <span id="statusText2">Asesor 2...</span>
+    </div>
   </div>
 </div>
 
@@ -108,9 +120,24 @@
 <div class="layout">
   <div class="sidebar">
     <div class="sidebar-title">CONEXIÓN WHATSAPP</div>
-    <div id="connectionArea">
-      <div class="qr-card">
-        <div style="font-size:13px;color:var(--muted)">Cargando... ⏳</div>
+
+    <div class="account-block">
+      <div class="account-label">📱 ASESOR 1</div>
+      <div id="connectionArea1">
+        <div class="qr-card">
+          <div style="font-size:13px;color:var(--muted)">Cargando... ⏳</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="account-block">
+      <div class="account-label">📱 ASESOR 2</div>
+      <div id="connectionArea2">
+        <div class="qr-card">
+          <div style="font-size:13px;color:var(--muted)">Cargando... ⏳</div>
+        </div>
       </div>
     </div>
 
@@ -162,13 +189,21 @@
       </div>
     </div>
   </div>
-</div><script>
+</div>
+
+<script>
 const socket = io();
 let allMessages = [];
 let escalatedPhones = new Set();
 
-socket.on('status', updateStatus);
-socket.on('qr', showQR);
+// Asesor 1
+socket.on('status_numero1', (data) => updateStatus(data, 1));
+socket.on('qr_numero1', (qr) => showQR(qr, 1));
+
+// Asesor 2
+socket.on('status_numero2', (data) => updateStatus(data, 2));
+socket.on('qr_numero2', (qr) => showQR(qr, 2));
+
 socket.on('new_message', (msg) => {
   allMessages.unshift(msg);
   renderMessageLog();
@@ -178,7 +213,7 @@ socket.on('new_message', (msg) => {
 socket.on('new_escalation', (data) => {
   escalatedPhones.add(data.phone);
   updateEscalationList();
-  showToast('escalation', '🚨 Caso Escalado', `Cliente ${data.phone}`);
+  showToast('escalation', '🚨 Caso Escalado', `Cliente ${data.phone} · ${data.account||''}`);
   document.getElementById('statEsc').textContent = escalatedPhones.size;
   refreshConversations();
 });
@@ -195,32 +230,32 @@ socket.on('nova_reactivated', (data) => {
   refreshConversations();
 });
 
-function updateStatus(data) {
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
+function updateStatus(data, num) {
+  const dot = document.getElementById('statusDot' + num);
+  const text = document.getElementById('statusText' + num);
   if (data.connected) {
     dot.className = 'dot connected';
-    text.textContent = `NOVA activa · ${data.phone || ''}`;
-    if (data.phone) showConnected(data.phone);
+    text.textContent = `Asesor ${num} · ${data.phone || ''}`;
+    showConnected(data.phone, num);
   } else {
     dot.className = 'dot disconnected';
-    text.textContent = data.message || 'Desconectado';
+    text.textContent = `Asesor ${num}: ${data.message || 'Desconectado'}`;
   }
 }
 
-function showQR(qrData) {
-  document.getElementById('connectionArea').innerHTML = `
+function showQR(qrData, num) {
+  document.getElementById('connectionArea' + num).innerHTML = `
     <div class="qr-card">
-      <div style="font-size:11px;color:var(--cyan);font-weight:700;margin-bottom:8px">ESCANEA PARA CONECTAR 📱</div>
-      <img src="${qrData}" alt="QR"/>
+      <div style="font-size:11px;color:var(--cyan);font-weight:700;margin-bottom:8px">ESCANEA · ASESOR ${num} 📱</div>
+      <img src="${qrData}" alt="QR Asesor ${num}"/>
       <div style="font-size:10px;color:var(--muted);margin-top:8px">WhatsApp → Dispositivos vinculados → Vincular dispositivo</div>
     </div>`;
 }
 
-function showConnected(phone) {
-  document.getElementById('connectionArea').innerHTML = `
+function showConnected(phone, num) {
+  document.getElementById('connectionArea' + num).innerHTML = `
     <div class="connected-info">
-      <div style="font-size:24px;margin-bottom:8px">❄️</div>
+      <div style="font-size:20px;margin-bottom:6px">❄️</div>
       <div class="phone">+${phone}</div>
       <div style="font-size:10px;color:var(--muted);margin-top:4px">NOVA ACTIVA Y RESPONDIENDO</div>
     </div>`;
@@ -253,10 +288,11 @@ function renderMessageLog() {
     const cls = isEsc ? 'escalated-msg' : msg.type;
     const typeLabel = isEsc ? 'ESCALADO' : (msg.type === 'incoming' ? 'CLIENTE' : 'NOVA');
     const typeCls = isEsc ? 'type-esc' : (msg.type === 'incoming' ? 'type-in' : 'type-out');
+    const accountTag = msg.account ? `<br><span style="color:var(--purple);font-size:8px">${msg.account}</span>` : '';
     return `
       <div class="log-item ${cls}">
         <div class="log-time">${msg.timestamp}<br><span style="font-size:9px">${msg.date}</span></div>
-        <div class="log-phone">+${msg.phone}</div>
+        <div class="log-phone">+${msg.phone}${accountTag}</div>
         <div class="log-text">${esc(msg.message.substring(0,120))}${msg.message.length>120?'...':''}</div>
         <div class="log-type"><span class="${typeCls}">${typeLabel}</span></div>
       </div>`;
@@ -299,6 +335,11 @@ async function refreshData() {
   try {
     const s = await fetch('/api/status');
     const status = await s.json();
+    // Actualizar estado de ambos números
+    if (status.numero1) updateStatus({ connected: status.numero1.connected, phone: status.numero1.phone, message: status.numero1.connected ? 'Activo' : 'Desconectado' }, 1);
+    if (status.numero2) updateStatus({ connected: status.numero2.connected, phone: status.numero2.phone, message: status.numero2.connected ? 'Activo' : 'Desconectado' }, 2);
+    if (status.numero1?.qr) showQR(status.numero1.qr, 1);
+    if (status.numero2?.qr) showQR(status.numero2.qr, 2);
     escalatedPhones = new Set(status.escalatedChats || []);
     updateEscalationList();
     document.getElementById('statEsc').textContent = escalatedPhones.size;
