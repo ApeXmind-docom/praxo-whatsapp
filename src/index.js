@@ -1,6 +1,5 @@
 require('dotenv').config();
 const { default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const { MongoClient } = require('mongodb');
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -22,10 +21,11 @@ let clientPhone = null;
 const messageLog = [];
 let sock = null;
 
-connectDB();
+// ─── AUTH STATE EN MONGODB (reutiliza conexión de database.js) ────────────────
+async function useMongoAuthState() {
+  const db = await connectDB();
+  const collection = db.collection('auth_sessions');
 
-// ─── AUTH STATE EN MONGODB ────────────────────────────────────────────────────
-async function useMongoAuthState(collection) {
   const readData = async (id) => {
     const item = await collection.findOne({ _id: id });
     return item ? JSON.parse(item.data) : null;
@@ -71,13 +71,7 @@ async function useMongoAuthState(collection) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function connectWhatsApp() {
-  // Conectar a MongoDB para guardar sesión
-  const mongoClient = new MongoClient(process.env.MONGODB_URI);
-  await mongoClient.connect();
-  const db = mongoClient.db('praxo');
-  const authCollection = db.collection('auth_sessions');
-
-  const { state, saveCreds } = await useMongoAuthState(authCollection);
+  const { state, saveCreds } = await useMongoAuthState();
   const { version } = await fetchLatestBaileysVersion();
 
   sock = makeWASocket({
@@ -275,9 +269,8 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
   console.log('🚀 PRAXO arrancado en puerto ' + PORT);
   console.log('🖥️  Panel: http://localhost:' + PORT);
+  await connectWhatsApp();
 });
-
-connectWhatsApp();
