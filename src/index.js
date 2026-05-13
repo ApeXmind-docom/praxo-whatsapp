@@ -91,10 +91,10 @@ async function connectWhatsApp(accountKey) {
       if (message.key.remoteJid === 'status@broadcast') continue;
       if (message.key.remoteJid.includes('@g.us')) continue;
 
-      const phoneNumber = message.key.remoteJid.replace('@s.whatsapp.net', '');
+      const phoneNumber = message.key.remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '');
 
       // Ignorar mensajes entre asesores — conversaciones personales
-const NUMEROS_ASESORES = ['573166293733', '573118576272'];
+const NUMEROS_ASESORES = ['573166293733', '573118576272', '198010961158274', '156959663771712'];
 if (NUMEROS_ASESORES.some(n => phoneNumber.includes(n))) continue;
       }
 
