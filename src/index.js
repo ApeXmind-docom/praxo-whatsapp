@@ -18,8 +18,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 const messageLog = [];
 
 // Números de los asesores — NOVA los ignora completamente
-const NUMEROS_ASESORES = ['573166293733', '573118576272'];
-
+const NUMEROS_ASESORES = ['573166293733', '573118576272', '55314917417149', '263071847153902'];
 // Estado de cada número
 const accounts = {
   numero1: {
