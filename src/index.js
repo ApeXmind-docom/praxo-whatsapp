@@ -1,13 +1,12 @@
 require('dotenv').config();
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const qrcode = require('qrcode');
 const path = require('path');
-const fs = require('fs-extra');
 const { getAIResponse, getConversations, getEscalatedChats, clearConversation, reactivateNova } = require('./ai');
+const { connectDB, saveClient, saveMessage, getClients } = require('./database');
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,6 +20,8 @@ let isConnected = false;
 let clientPhone = null;
 const messageLog = [];
 let sock = null;
+
+connectDB();
 
 async function connectWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState('./data/session');
@@ -51,9 +52,7 @@ async function connectWhatsApp() {
       console.log('Conexion cerrada. Reconectando:', shouldReconnect);
       isConnected = false;
       io.emit('status', { connected: false, message: 'Desconectado' });
-      if (shouldReconnect) {
-        setTimeout(connectWhatsApp, 3000);
-      }
+      if (shouldReconnect) setTimeout(connectWhatsApp, 3000);
     }
 
     if (connection === 'open') {
@@ -82,7 +81,24 @@ async function connectWhatsApp() {
       if (!messageText) continue;
 
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
-      console.log(`📩 [${timestamp}] ${phoneNumber}: ${messageText}`);
+      console.log('📩 [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
+
+      // Guardar cliente en MongoDB
+      await saveClient({
+        phone: phoneNumber,
+        lastMessage: messageText,
+        lastSeen: new Date(),
+        status: 'active',
+        client: process.env.CLIENT_NAME || 'Refriadvanced'
+      });
+
+      // Guardar mensaje en MongoDB
+      await saveMessage({
+        phone: phoneNumber,
+        message: messageText,
+        type: 'incoming',
+        client: process.env.CLIENT_NAME || 'Refriadvanced'
+      });
 
       const incomingLog = {
         id: Date.now(),
@@ -99,13 +115,21 @@ async function connectWhatsApp() {
       const novaResponse = await getAIResponse(phoneNumber, messageText);
 
       if (novaResponse === null) {
-        console.log(`🔇 [${phoneNumber}] Chat escalado - NOVA en silencio`);
+        console.log('🔇 [' + phoneNumber + '] Chat escalado - NOVA en silencio');
         io.emit('escalated_chat', { phone: phoneNumber, timestamp });
         continue;
       }
 
       try {
         await sock.sendMessage(message.key.remoteJid, { text: novaResponse });
+
+        // Guardar respuesta en MongoDB
+        await saveMessage({
+          phone: phoneNumber,
+          message: novaResponse,
+          type: 'outgoing',
+          client: process.env.CLIENT_NAME || 'Refriadvanced'
+        });
 
         const outgoingLog = {
           id: Date.now() + 1,
@@ -120,15 +144,25 @@ async function connectWhatsApp() {
         io.emit('new_message', outgoingLog);
 
         if (novaResponse.includes('CASO ESCALADO')) {
+          // Actualizar estado del cliente en MongoDB
+          await saveClient({
+            phone: phoneNumber,
+            lastMessage: messageText,
+            lastSeen: new Date(),
+            status: 'escalated',
+            client: process.env.CLIENT_NAME || 'Refriadvanced'
+          });
+
           io.emit('new_escalation', {
             phone: phoneNumber,
             timestamp: outgoingLog.timestamp,
             preview: messageText.substring(0, 80),
           });
+
           if (process.env.ADMIN_PHONE && sock) {
             try {
-              await sock.sendMessage(`${process.env.ADMIN_PHONE}@s.whatsapp.net`, {
-                text: `🚨 *NOVA - Caso escalado*\n\n📱 Cliente: ${phoneNumber}\n💬 Mensaje: "${messageText.substring(0, 100)}"\n\n⚠️ Requiere atencion del asesor.\nEscribe *NOVA* en el chat para reactivar.`
+              await sock.sendMessage(process.env.ADMIN_PHONE + '@s.whatsapp.net', {
+                text: '🚨 *NOVA - Caso escalado*\n\n📱 Cliente: ' + phoneNumber + '\n💬 Mensaje: "' + messageText.substring(0, 100) + '"\n\n⚠️ Requiere atencion del asesor.\nEscribe *NOVA* en el chat para reactivar.'
               });
             } catch (e) {
               console.log('No se pudo notificar al admin:', e.message);
@@ -166,6 +200,12 @@ app.get('/api/conversations', (req, res) => {
   res.json(result);
 });
 
+// Endpoint para ver todos los clientes desde MongoDB
+app.get('/api/clients', async (req, res) => {
+  const clients = await getClients();
+  res.json(clients);
+});
+
 app.post('/api/reactivate/:phone', (req, res) => {
   reactivateNova(req.params.phone);
   io.emit('nova_reactivated', { phone: req.params.phone });
@@ -188,8 +228,8 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
-  console.log(`🚀 PRAXO arrancado en puerto ${PORT}`);
-  console.log(`🖥️  Panel: http://localhost:${PORT}`);
+  console.log('🚀 PRAXO arrancado en puerto ' + PORT);
+  console.log('🖥️  Panel: http://localhost:' + PORT);
 });
 
 connectWhatsApp();
