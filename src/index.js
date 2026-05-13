@@ -39,7 +39,7 @@ async function useMongoAuthState() {
     );
   };
 
-  const creds = (await readData('creds')) || {};
+  const creds = (await readData('creds')) || undefined;
 
   return {
     state: {
