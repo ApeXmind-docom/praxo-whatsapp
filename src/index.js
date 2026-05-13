@@ -17,6 +17,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 const messageLog = [];
 
+// Números de los asesores — NOVA los ignora completamente
+const NUMEROS_ASESORES = ['573166293733', '573118576272'];
+
 // Estado de cada número
 const accounts = {
   numero1: {
@@ -89,13 +92,19 @@ async function connectWhatsApp(accountKey) {
       if (message.key.remoteJid.includes('@g.us')) continue;
 
       const phoneNumber = message.key.remoteJid.replace('@s.whatsapp.net', '');
+
+      // Ignorar mensajes entre asesores — conversaciones personales
+      if (NUMEROS_ASESORES.includes(phoneNumber)) {
+        console.log('🔕 [' + account.label + '] Mensaje de asesor ignorado: ' + phoneNumber);
+        continue;
+      }
+
       const messageText = message.message?.conversation ||
         message.message?.extendedTextMessage?.text ||
         message.message?.imageMessage?.caption || '';
 
       if (!messageText) continue;
 
-      // Prefijo para separar conversaciones por número
       const conversationId = accountKey + '_' + phoneNumber;
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
       console.log('📩 [' + account.label + '] [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
@@ -179,7 +188,6 @@ async function connectWhatsApp(accountKey) {
             account: account.label,
           });
 
-          // Notificar al asesor correspondiente
           const adminPhone = accountKey === 'numero1'
             ? process.env.ADMIN_PHONE
             : process.env.ADMIN_PHONE_2;
@@ -200,8 +208,6 @@ async function connectWhatsApp(accountKey) {
     }
   });
 }
-
-// ── API ──────────────────────────────────────────────────────────────────────
 
 app.get('/api/status', (req, res) => {
   res.json({
@@ -268,6 +274,6 @@ httpServer.listen(PORT, async () => {
   console.log('🚀 PRAXO arrancado en puerto ' + PORT);
   console.log('🖥️  Panel: http://localhost:' + PORT);
   await connectDB();
-   connectWhatsApp('numero1');
-   connectWhatsApp('numero2');
+  connectWhatsApp('numero1');
+  connectWhatsApp('numero2');
 });
