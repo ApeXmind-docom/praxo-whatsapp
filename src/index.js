@@ -1,5 +1,6 @@
 require('dotenv').config();
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { MongoClient } = require('mongodb');
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -23,8 +24,60 @@ let sock = null;
 
 connectDB();
 
+// ─── AUTH STATE EN MONGODB ────────────────────────────────────────────────────
+async function useMongoAuthState(collection) {
+  const readData = async (id) => {
+    const item = await collection.findOne({ _id: id });
+    return item ? JSON.parse(item.data) : null;
+  };
+
+  const writeData = async (id, data) => {
+    await collection.updateOne(
+      { _id: id },
+      { $set: { data: JSON.stringify(data), updatedAt: new Date() } },
+      { upsert: true }
+    );
+  };
+
+  const creds = (await readData('creds')) || {};
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {};
+          for (const id of ids) {
+            const value = await readData(`${type}-${id}`);
+            if (value) data[id] = value;
+          }
+          return data;
+        },
+        set: async (data) => {
+          for (const [type, ids] of Object.entries(data)) {
+            for (const [id, value] of Object.entries(ids)) {
+              if (value) await writeData(`${type}-${id}`, value);
+              else await collection.deleteOne({ _id: `${type}-${id}` });
+            }
+          }
+        },
+      },
+    },
+    saveCreds: async () => {
+      await writeData('creds', creds);
+    },
+  };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function connectWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState('./data/session');
+  // Conectar a MongoDB para guardar sesión
+  const mongoClient = new MongoClient(process.env.MONGODB_URI);
+  await mongoClient.connect();
+  const db = mongoClient.db('praxo');
+  const authCollection = db.collection('auth_sessions');
+
+  const { state, saveCreds } = await useMongoAuthState(authCollection);
   const { version } = await fetchLatestBaileysVersion();
 
   sock = makeWASocket({
@@ -83,7 +136,6 @@ async function connectWhatsApp() {
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
       console.log('📩 [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
 
-      // Guardar cliente en MongoDB
       await saveClient({
         phone: phoneNumber,
         lastMessage: messageText,
@@ -92,7 +144,6 @@ async function connectWhatsApp() {
         client: process.env.CLIENT_NAME || 'Refriadvanced'
       });
 
-      // Guardar mensaje en MongoDB
       await saveMessage({
         phone: phoneNumber,
         message: messageText,
@@ -123,7 +174,6 @@ async function connectWhatsApp() {
       try {
         await sock.sendMessage(message.key.remoteJid, { text: novaResponse });
 
-        // Guardar respuesta en MongoDB
         await saveMessage({
           phone: phoneNumber,
           message: novaResponse,
@@ -144,7 +194,6 @@ async function connectWhatsApp() {
         io.emit('new_message', outgoingLog);
 
         if (novaResponse.includes('CASO ESCALADO')) {
-          // Actualizar estado del cliente en MongoDB
           await saveClient({
             phone: phoneNumber,
             lastMessage: messageText,
@@ -200,7 +249,6 @@ app.get('/api/conversations', (req, res) => {
   res.json(result);
 });
 
-// Endpoint para ver todos los clientes desde MongoDB
 app.get('/api/clients', async (req, res) => {
   const clients = await getClients();
   res.json(clients);
