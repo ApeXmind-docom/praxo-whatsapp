@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { default: makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const express = require('express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
@@ -21,58 +21,9 @@ let clientPhone = null;
 const messageLog = [];
 let sock = null;
 
-// ─── AUTH STATE EN MONGODB (reutiliza conexión de database.js) ────────────────
-async function useMongoAuthState() {
-  const db = await connectDB();
-  const collection = db.collection('auth_sessions');
-
-  const readData = async (id) => {
-    const item = await collection.findOne({ _id: id });
-    return item ? JSON.parse(item.data) : null;
-  };
-
-  const writeData = async (id, data) => {
-    await collection.updateOne(
-      { _id: id },
-      { $set: { data: JSON.stringify(data), updatedAt: new Date() } },
-      { upsert: true }
-    );
-  };
-
-const { initAuthCreds } = require('@whiskeysockets/baileys');
-const creds = (await readData('creds')) || initAuthCreds();
-
-  return {
-    state: {
-      creds,
-      keys: {
-        get: async (type, ids) => {
-          const data = {};
-          for (const id of ids) {
-            const value = await readData(`${type}-${id}`);
-            if (value) data[id] = value;
-          }
-          return data;
-        },
-        set: async (data) => {
-          for (const [type, ids] of Object.entries(data)) {
-            for (const [id, value] of Object.entries(ids)) {
-              if (value) await writeData(`${type}-${id}`, value);
-              else await collection.deleteOne({ _id: `${type}-${id}` });
-            }
-          }
-        },
-      },
-    },
-    saveCreds: async () => {
-      await writeData('creds', creds);
-    },
-  };
-}
-// ─────────────────────────────────────────────────────────────────────────────
-
 async function connectWhatsApp() {
-  const { state, saveCreds } = await useMongoAuthState();
+  // Sesión guardada en disco persistente de Render (/data)
+  const { state, saveCreds } = await useMultiFileAuthState('/data/session');
   const { version } = await fetchLatestBaileysVersion();
 
   sock = makeWASocket({
@@ -273,5 +224,6 @@ const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, async () => {
   console.log('🚀 PRAXO arrancado en puerto ' + PORT);
   console.log('🖥️  Panel: http://localhost:' + PORT);
+  await connectDB();
   await connectWhatsApp();
 });
