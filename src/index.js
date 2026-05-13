@@ -39,7 +39,8 @@ async function useMongoAuthState() {
     );
   };
 
-  const creds = (await readData('creds')) || undefined;
+const { initAuthCreds } = require('@whiskeysockets/baileys');
+const creds = (await readData('creds')) || initAuthCreds();
 
   return {
     state: {
