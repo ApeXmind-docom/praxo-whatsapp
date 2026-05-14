@@ -5,7 +5,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const qrcode = require('qrcode');
 const path = require('path');
-const { getAIResponse, getConversations, getEscalatedChats, clearConversation, reactivateNova } = require('./ai');
+const { getAIResponse, getConversations, getEscalatedChats, clearConversation, reactivateNova, escalateChat } = require('./ai');
 const { connectDB, saveClient, saveMessage, getClients } = require('./database');
 
 const app = express();
@@ -17,9 +17,9 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 const messageLog = [];
 
-// Números de los asesores — NOVA los ignora completamente
+// Números de los asesores
 const NUMEROS_ASESORES = ['573166293733', '573118576272', '55314917417149', '263071847153902'];
-// Estado de cada número
+
 const accounts = {
   numero1: {
     label: 'Asesor 1',
@@ -86,14 +86,11 @@ async function connectWhatsApp(accountKey) {
 
     for (const message of messages) {
       if (!message.message) continue;
-      if (message.key.fromMe) continue;
       if (message.key.remoteJid === 'status@broadcast') continue;
       if (message.key.remoteJid.includes('@g.us')) continue;
 
       const phoneNumber = message.key.remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '');
-
-      // Ignorar mensajes entre asesores — conversaciones personales
-      if (NUMEROS_ASESORES.some(n => phoneNumber.includes(n))) continue;
+      const conversationId = accountKey + '_' + phoneNumber;
 
       const messageText = message.message?.conversation ||
         message.message?.extendedTextMessage?.text ||
@@ -101,7 +98,25 @@ async function connectWhatsApp(accountKey) {
 
       if (!messageText) continue;
 
-      const conversationId = accountKey + '_' + phoneNumber;
+      // ── MENSAJE ENVIADO POR EL ASESOR (fromMe) ──────────────────────────
+      if (message.key.fromMe) {
+        // Si el asesor escribe NOVA → reactivar
+        if (messageText.trim().toUpperCase() === 'NOVA') {
+          reactivateNova(conversationId);
+          console.log('✅ [' + account.label + '] NOVA reactivada para ' + phoneNumber);
+        } else {
+          // El asesor respondió manualmente → NOVA se calla automáticamente
+          escalateChat(conversationId);
+          console.log('🤫 [' + account.label + '] Asesor intervino en ' + phoneNumber + ' — NOVA en silencio');
+          io.emit('escalated_chat', { phone: phoneNumber, account: account.label });
+        }
+        continue;
+      }
+
+      // ── MENSAJE ENTRE ASESORES → ignorar completamente ──────────────────
+      if (NUMEROS_ASESORES.some(n => phoneNumber.includes(n))) continue;
+
+      // ── MENSAJE DE CLIENTE ───────────────────────────────────────────────
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
       console.log('📩 [' + account.label + '] [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
 
@@ -139,7 +154,6 @@ async function connectWhatsApp(accountKey) {
 
       if (novaResponse === null) {
         console.log('🔇 [' + account.label + '] [' + phoneNumber + '] Chat escalado - NOVA en silencio');
-        io.emit('escalated_chat', { phone: phoneNumber, timestamp, account: account.label });
         continue;
       }
 
@@ -207,16 +221,8 @@ async function connectWhatsApp(accountKey) {
 
 app.get('/api/status', (req, res) => {
   res.json({
-    numero1: {
-      connected: accounts.numero1.isConnected,
-      phone: accounts.numero1.clientPhone,
-      qr: accounts.numero1.qrImageData,
-    },
-    numero2: {
-      connected: accounts.numero2.isConnected,
-      phone: accounts.numero2.clientPhone,
-      qr: accounts.numero2.qrImageData,
-    },
+    numero1: { connected: accounts.numero1.isConnected, phone: accounts.numero1.clientPhone, qr: accounts.numero1.qrImageData },
+    numero2: { connected: accounts.numero2.isConnected, phone: accounts.numero2.clientPhone, qr: accounts.numero2.qrImageData },
     totalConversations: Object.keys(getConversations()).length,
     escalatedChats: Object.entries(getEscalatedChats()).filter(([,v]) => v).map(([k]) => k),
   });
