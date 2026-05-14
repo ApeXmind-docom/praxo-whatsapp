@@ -93,9 +93,7 @@ async function connectWhatsApp(accountKey) {
       const phoneNumber = message.key.remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '');
 
       // Ignorar mensajes entre asesores — conversaciones personales
-const NUMEROS_ASESORES = ['573166293733', '573118576272', '198010961158274', '156959663771712'];
-if (NUMEROS_ASESORES.some(n => phoneNumber.includes(n))) continue;
-      }
+      if (NUMEROS_ASESORES.some(n => phoneNumber.includes(n))) continue;
 
       const messageText = message.message?.conversation ||
         message.message?.extendedTextMessage?.text ||
