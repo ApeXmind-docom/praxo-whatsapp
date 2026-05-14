@@ -34,7 +34,7 @@ async function getAIResponse(phoneNumber, userMessage) {
 
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001,
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1000,
       system: NOVA_PROMPT,
       messages: conversations[phoneNumber],
@@ -65,6 +65,9 @@ function clearConversation(phoneNumber) {
   conversations[phoneNumber] = [];
   escalatedChats[phoneNumber] = false;
 }
+function escalateChat(phoneNumber) {
+  escalatedChats[phoneNumber] = true;
+}
 function reactivateNova(phoneNumber) {
   escalatedChats[phoneNumber] = false;
   conversations[phoneNumber] = [];
@@ -76,4 +79,5 @@ module.exports = {
   getEscalatedChats,
   clearConversation,
   reactivateNova,
+  escalateChat,
 };
