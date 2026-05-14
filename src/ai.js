@@ -28,8 +28,8 @@ async function getAIResponse(phoneNumber, userMessage) {
     content: userMessage,
   });
 
-  if (conversations[phoneNumber].length > 20) {
-    conversations[phoneNumber] = conversations[phoneNumber].slice(-20);
+  if (conversations[phoneNumber].length > 10) {
+    conversations[phoneNumber] = conversations[phoneNumber].slice(-10);
   }
 
   try {
