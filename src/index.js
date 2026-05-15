@@ -98,23 +98,24 @@ async function connectWhatsApp(accountKey) {
 
       if (!messageText) continue;
 
-      // ── MENSAJE ENVIADO POR EL ASESOR (fromMe) ──────────────────────────
-      if (message.key.fromMe) {
-        // Si el asesor escribe NOVA → reactivar
-        if (messageText.trim().toUpperCase() === 'NOVA') {
-          reactivateNova(conversationId);
-          console.log('✅ [' + account.label + '] NOVA reactivada para ' + phoneNumber);
-        } else {
-          // El asesor respondió manualmente → NOVA se calla automáticamente
-          escalateChat(conversationId);
-          console.log('🤫 [' + account.label + '] Asesor intervino en ' + phoneNumber + ' — NOVA en silencio');
-          io.emit('escalated_chat', { phone: phoneNumber, account: account.label });
+      // ── MENSAJE DEL ASESOR: fromMe O número de asesor escribiendo a cliente ──
+      const esAsesor = message.key.fromMe || NUMEROS_ASESORES.some(n => phoneNumber.includes(n));
+
+      if (esAsesor) {
+        if (message.key.fromMe) {
+          // El asesor respondió desde su teléfono → silenciar NOVA
+          if (messageText.trim().toUpperCase() === 'NOVA') {
+            reactivateNova(conversationId);
+            console.log('✅ [' + account.label + '] NOVA reactivada para ' + phoneNumber);
+          } else {
+            escalateChat(conversationId);
+            console.log('🤫 [' + account.label + '] Asesor intervino en ' + phoneNumber + ' — NOVA en silencio');
+            io.emit('escalated_chat', { phone: phoneNumber, account: account.label });
+          }
         }
+        // En cualquier caso, si es asesor → no procesar con NOVA
         continue;
       }
-
-      // ── MENSAJE ENTRE ASESORES → ignorar completamente ──────────────────
-      if (NUMEROS_ASESORES.some(n => phoneNumber.includes(n))) continue;
 
       // ── MENSAJE DE CLIENTE ───────────────────────────────────────────────
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
