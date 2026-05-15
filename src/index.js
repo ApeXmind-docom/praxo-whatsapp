@@ -18,7 +18,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 const messageLog = [];
 
 // Números de los asesores
-const NUMEROS_ASESORES = ['573166293733', '573118576272', '55314917417149', '263071847153902'];
+const NUMEROS_ASESORES = ['573166293733', '573118576272', '55314917417149', '263071847153902', '573204542460'];
 
 const accounts = {
   numero1: {
