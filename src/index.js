@@ -13,6 +13,34 @@ const httpServer = createServer(app);
 const io = new Server(httpServer);
 
 app.use(express.json());
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  const validUser = process.env.PANEL_USER || 'Refriadvanced';
+  const validPass = process.env.PANEL_PASS || 'Refriadvanced2026#';
+  if (username === validUser && password === validPass) {
+    res.json({ success: true, token: Buffer.from(username + ':' + password).toString('base64') });
+  } else {
+    res.status(401).json({ success: false, message: 'Usuario o contraseña incorrectos' });
+  }
+});
+
+function authMiddleware(req, res, next) {
+  const auth = req.headers['x-auth-token'];
+  const validUser = process.env.PANEL_USER || 'Refriadvanced';
+  const validPass = process.env.PANEL_PASS || 'Refriadvanced2026#';
+  const expected = Buffer.from(validUser + ':' + validPass).toString('base64');
+  if (auth === expected) return next();
+  res.status(401).json({ error: 'No autorizado' });
+}
+
+app.use('/api/status', authMiddleware);
+app.use('/api/messages', authMiddleware);
+app.use('/api/clients', authMiddleware);
+app.use('/api/conversations', authMiddleware);
+app.use('/api/stats', authMiddleware);
+app.use('/api/reactivate', authMiddleware);
+app.use('/api/clear', authMiddleware);
 app.use(express.static(path.join(__dirname, '../public')));
 
 const messageLog = [];
