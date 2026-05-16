@@ -7,364 +7,404 @@
 <script src="/socket.io/socket.io.js"></script>
 <style>
   :root {
-    --bg: #080810; --surface: #0D0D1A; --card: #12122A;
-    --border: #1E1E3A; --purple: #6C00FF; --cyan: #00F5FF;
-    --green: #00E676; --red: #FF2D55; --text: #E0E0FF; --muted: #8888AA;
+    --bg:#080810; --surface:#0D0D1A; --card:#12122A;
+    --border:#1E1E3A; --purple:#6C00FF; --cyan:#00F5FF;
+    --green:#00E676; --red:#FF2D55; --amber:#FFB300;
+    --text:#E0E0FF; --muted:#8888AA;
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',sans-serif; min-height:100vh; }
-  .header {
-    background:var(--surface); border-bottom:1px solid var(--border);
-    padding:14px 24px; display:flex; align-items:center;
-    justify-content:space-between; position:sticky; top:0; z-index:100;
-  }
-  .brand-logo { font-size:22px; font-weight:900; color:#fff; letter-spacing:2px; }
-  .brand-tag { font-size:10px; color:var(--cyan); letter-spacing:3px; font-weight:600; }
-  .status-badges { display:flex; gap:10px; flex-wrap:wrap; }
-  .status-badge {
-    display:flex; align-items:center; gap:8px; padding:6px 14px;
-    border-radius:20px; background:var(--card); border:1px solid var(--border);
-    font-size:12px; font-weight:600;
-  }
-  .dot { width:8px; height:8px; border-radius:50%; }
-  .dot.connected { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 2s infinite; }
-  .dot.disconnected { background:var(--red); }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  .layout { display:grid; grid-template-columns:300px 1fr; min-height:calc(100vh - 60px); }
-  .sidebar { background:var(--surface); border-right:1px solid var(--border); padding:20px; overflow-y:auto; }
-  .sidebar-title { font-size:10px; color:var(--muted); letter-spacing:3px; margin-bottom:14px; font-weight:600; }
-  .account-block { margin-bottom:20px; }
-  .account-label { font-size:11px; font-weight:700; color:var(--cyan); margin-bottom:8px; padding:4px 8px; background:var(--card); border-radius:6px; display:inline-block; }
-  .qr-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center; margin-bottom:10px; }
-  .qr-card img { width:140px; height:140px; border-radius:8px; margin:10px auto; display:block; }
-  .connected-info { background:var(--card); border:1px solid #00E67633; border-radius:12px; padding:14px; margin-bottom:10px; text-align:center; }
-  .connected-info .phone { font-size:15px; font-weight:700; color:var(--green); }
-  .stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
-  .stat-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 12px; text-align:center; }
-  .stat-number { font-size:26px; font-weight:900; color:var(--purple); }
-  .stat-label { font-size:9px; color:var(--muted); margin-top:2px; letter-spacing:1px; }
-  .escalation-item {
-    background:#FF2D5511; border:1px solid #FF2D5533; border-radius:8px;
-    padding:10px 12px; margin-bottom:6px; display:flex;
-    align-items:center; justify-content:space-between; font-size:12px;
-  }
-  .escalation-phone { color:var(--red); font-weight:600; }
-  .btn-reactivate {
-    background:var(--purple); color:white; border:none; border-radius:6px;
-    padding:4px 10px; font-size:10px; cursor:pointer; font-weight:600;
-  }
-  .btn-reactivate:hover { opacity:0.8; }
-  .main { padding:24px; overflow-y:auto; }
-  .main-title { font-size:10px; color:var(--muted); letter-spacing:3px; margin-bottom:16px; font-weight:600; }
-  .conv-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; margin-bottom:28px; }
-  .conv-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
-  .conv-card.escalated { border-color:var(--red); background:#FF2D5508; }
-  .conv-phone { font-size:13px; font-weight:700; color:var(--cyan); margin-bottom:4px; }
-  .conv-preview { font-size:11px; color:var(--muted); margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .conv-account { font-size:9px; color:var(--purple); font-weight:700; margin-bottom:6px; }
-  .badge { font-size:9px; font-weight:700; padding:2px 8px; border-radius:10px; }
-  .badge-msgs { background:#6C00FF22; color:var(--purple); border:1px solid #6C00FF44; }
-  .badge-escalated { background:#FF2D5522; color:var(--red); border:1px solid #FF2D5544; }
-  .badge-active { background:#00E67622; color:var(--green); border:1px solid #00E67644; }
-  .log-container { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-  .log-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
-  .log-scroll { max-height:420px; overflow-y:auto; }
-  .log-item { padding:10px 18px; border-bottom:1px solid var(--border); display:grid; grid-template-columns:100px 120px 1fr 80px; gap:12px; font-size:11px; }
-  .log-item.incoming { border-left:3px solid var(--cyan); }
-  .log-item.outgoing { border-left:3px solid var(--purple); }
-  .log-item.escalated-msg { border-left:3px solid var(--red); }
-  .log-time { color:var(--muted); }
-  .log-phone { color:var(--cyan); font-weight:600; }
-  .log-text { color:var(--text); line-height:1.4; word-break:break-word; }
-  .type-in { color:var(--cyan); font-weight:700; font-size:9px; }
-  .type-out { color:var(--purple); font-weight:700; font-size:9px; }
-  .type-esc { color:var(--red); font-weight:700; font-size:9px; }
-  .toast-container { position:fixed; top:80px; right:20px; z-index:1000; display:flex; flex-direction:column; gap:8px; }
-  .toast { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 16px; font-size:12px; max-width:280px; animation:slideIn 0.3s ease; }
-  .toast.escalation { border-color:var(--red); }
-  .toast.success { border-color:var(--green); }
-  .toast-title { font-weight:700; margin-bottom:4px; }
-  .toast.escalation .toast-title { color:var(--red); }
-  .toast.success .toast-title { color:var(--green); }
-  .toast-body { color:var(--muted); }
-  @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
-  ::-webkit-scrollbar { width:4px; }
-  ::-webkit-scrollbar-track { background:var(--surface); }
-  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-  .empty { text-align:center; padding:40px; color:var(--muted); font-size:13px; }
-  .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius:8px; border:none; font-size:11px; font-weight:700; cursor:pointer; }
-  .btn-cyan { background:var(--cyan); color:#000; }
-  .divider { border:none; border-top:1px solid var(--border); margin:16px 0; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh;}
+
+  /* LOGIN */
+  .login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:32px;}
+  .login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:360px;}
+  .login-logo{font-size:28px;font-weight:900;color:#fff;letter-spacing:3px;text-align:center;}
+  .login-tag{font-size:10px;color:var(--cyan);letter-spacing:3px;text-align:center;margin-bottom:32px;}
+  .login-field{margin-bottom:16px;}
+  .login-field label{font-size:11px;color:var(--muted);letter-spacing:1px;display:block;margin-bottom:6px;}
+  .login-field input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;transition:border .2s;}
+  .login-field input:focus{border-color:var(--cyan);}
+  .login-btn{width:100%;padding:12px;background:var(--purple);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:opacity .2s;margin-top:8px;}
+  .login-btn:hover{opacity:.85;}
+  .login-error{color:var(--red);font-size:12px;text-align:center;margin-top:12px;display:none;}
+
+  /* PANEL */
+  .panel{display:none;}
+  .header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .brand{display:flex;flex-direction:column;}
+  .brand-logo{font-size:20px;font-weight:900;color:#fff;letter-spacing:2px;}
+  .brand-tag{font-size:9px;color:var(--cyan);letter-spacing:3px;}
+  .header-right{display:flex;align-items:center;gap:12px;}
+  .status-badges{display:flex;gap:8px;flex-wrap:wrap;}
+  .status-badge{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--card);border:1px solid var(--border);font-size:11px;font-weight:600;}
+  .dot{width:7px;height:7px;border-radius:50%;}
+  .dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+  .dot.off{background:var(--red);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .logout-btn{padding:5px 12px;border-radius:20px;background:var(--card);border:1px solid var(--border);font-size:11px;color:var(--red);cursor:pointer;}
+  .logout-btn:hover{background:#FF2D5522;}
+
+  /* TABS */
+  .tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 24px;}
+  .tab{padding:12px 20px;font-size:12px;font-weight:600;letter-spacing:1px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+
+  /* CONTENT */
+  .content{padding:24px;display:none;}
+  .content.active{display:block;}
+
+  /* METRICS */
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px;}
+  .metric{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+  .metric-num{font-size:28px;font-weight:900;color:var(--purple);}
+  .metric-num.cyan{color:var(--cyan);}
+  .metric-num.green{color:var(--green);}
+  .metric-num.red{color:var(--red);}
+  .metric-num.amber{color:var(--amber);}
+  .metric-label{font-size:9px;color:var(--muted);margin-top:4px;letter-spacing:1px;text-transform:uppercase;}
+
+  /* CHART */
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:24px;}
+  .chart-title{font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:16px;text-transform:uppercase;}
+  .bar-chart{display:flex;align-items:flex-end;gap:8px;height:120px;}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .bar{width:100%;background:var(--purple);border-radius:4px 4px 0 0;min-height:4px;}
+  .bar-label{font-size:9px;color:var(--muted);}
+  .bar-val{font-size:10px;color:var(--text);font-weight:600;}
+
+  /* TABLES */
+  .table-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+  .table-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+  .table-title{font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+  .search-input{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text);font-size:12px;width:200px;outline:none;}
+  .search-input:focus{border-color:var(--cyan);}
+  table{width:100%;border-collapse:collapse;}
+  th{padding:10px 16px;text-align:left;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+  td{padding:12px 16px;font-size:12px;border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:#ffffff05;}
+  .badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;}
+  .badge.active{background:#00E67622;color:var(--green);}
+  .badge.escalated{background:#FF2D5522;color:var(--red);}
+  .badge.new{background:#6C00FF22;color:#A855F7;}
+  .btn-sm{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--cyan);transition:all .2s;}
+  .btn-sm:hover{background:var(--cyan);color:#000;}
+
+  /* CHAT PANEL */
+  .chat-panel{display:none;position:fixed;right:0;top:0;width:380px;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:200;flex-direction:column;}
+  .chat-panel.open{display:flex;}
+  .chat-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+  .chat-phone{font-size:13px;font-weight:700;color:var(--cyan);}
+  .chat-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+  .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;}
+  .msg{max-width:80%;padding:8px 12px;border-radius:10px;font-size:12px;line-height:1.5;}
+  .msg.in{background:var(--card);border:1px solid var(--border);align-self:flex-start;}
+  .msg.out{background:#6C00FF33;border:1px solid #6C00FF55;align-self:flex-end;}
+  .msg-time{font-size:9px;color:var(--muted);margin-top:4px;}
+
+  /* LOG */
+  .log-box{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .log-item{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;}
+  .log-item:last-child{border-bottom:none;}
+  .log-tag{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;white-space:nowrap;margin-top:1px;}
+  .log-tag.nova{background:#6C00FF33;color:#A855F7;}
+  .log-tag.cliente{background:#00F5FF22;color:var(--cyan);}
+  .log-text{font-size:12px;flex:1;}
+  .log-time{font-size:9px;color:var(--muted);white-space:nowrap;}
+  .escalation-item{background:#FF2D5511;border:1px solid #FF2D5533;border-radius:8px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+  .empty{text-align:center;padding:40px;color:var(--muted);font-size:13px;}
 </style>
 </head>
 <body>
-<div class="header">
-  <div>
-    <div class="brand-logo">PRAXO</div>
-    <div class="brand-tag">PANEL DE CONTROL · NOVA ❄️</div>
-  </div>
-  <div class="status-badges">
-    <div class="status-badge">
-      <div class="dot disconnected" id="statusDot1"></div>
-      <span id="statusText1">Asesor 1...</span>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">PRAXO</div>
+    <div class="login-tag">PANEL DE CONTROL · NOVA ❄</div>
+    <div class="login-field">
+      <label>USUARIO</label>
+      <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username">
     </div>
-    <div class="status-badge">
-      <div class="dot disconnected" id="statusDot2"></div>
-      <span id="statusText2">Asesor 2...</span>
+    <div class="login-field">
+      <label>CONTRASEÑA</label>
+      <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" onclick="doLogin()">INGRESAR</button>
+    <div class="login-error" id="loginError">Usuario o contraseña incorrectos</div>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div class="panel" id="mainPanel">
+  <div class="header">
+    <div class="brand">
+      <div class="brand-logo">PRAXO</div>
+      <div class="brand-tag">PANEL DE CONTROL · NOVA ❄</div>
+    </div>
+    <div class="header-right">
+      <div class="status-badges" id="statusBadges"></div>
+      <button class="logout-btn" onclick="doLogout()">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('dashboard',this)">📊 Dashboard</div>
+    <div class="tab" onclick="showTab('clientes',this)">👥 Clientes</div>
+    <div class="tab" onclick="showTab('conversaciones',this)">💬 Conversaciones</div>
+    <div class="tab" onclick="showTab('escalados',this)">🚨 Escalados</div>
+    <div class="tab" onclick="showTab('live',this)">⚡ En vivo</div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="content active" id="tab-dashboard">
+    <div class="metrics">
+      <div class="metric"><div class="metric-num cyan" id="m-clientes">—</div><div class="metric-label">Total clientes</div></div>
+      <div class="metric"><div class="metric-num green" id="m-hoy">—</div><div class="metric-label">Activos hoy</div></div>
+      <div class="metric"><div class="metric-num amber" id="m-semana">—</div><div class="metric-label">Mensajes semana</div></div>
+      <div class="metric"><div class="metric-num" id="m-mes">—</div><div class="metric-label">Mensajes mes</div></div>
+      <div class="metric"><div class="metric-num red" id="m-escalados">—</div><div class="metric-label">Escalados total</div></div>
+      <div class="metric"><div class="metric-num green">24/7</div><div class="metric-label">Disponibilidad</div></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Mensajes por día — últimos 7 días</div>
+      <div class="bar-chart" id="barChart"><div class="empty">Cargando...</div></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Clientes recientes</span></div>
+      <table><thead><tr><th>Teléfono</th><th>Último mensaje</th><th>Estado</th><th>Asesor</th><th>Fecha</th></tr></thead>
+      <tbody id="recentClients"></tbody></table>
+    </div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div class="content" id="tab-clientes">
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-title">Base de clientes</span>
+        <input class="search-input" type="text" placeholder="Buscar..." id="searchInput" oninput="filterClients()">
+      </div>
+      <table><thead><tr><th>Teléfono</th><th>Último mensaje</th><th>Estado</th><th>Asesor</th><th>Última actividad</th><th>Chat</th></tr></thead>
+      <tbody id="clientsTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- CONVERSACIONES -->
+  <div class="content" id="tab-conversaciones">
+    <div class="table-card">
+      <div class="table-header"><span class="table-title">Historial de conversaciones</span></div>
+      <table><thead><tr><th>Teléfono</th><th>Mensajes</th><th>Último</th><th>Estado</th><th>Ver</th></tr></thead>
+      <tbody id="convsTable"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ESCALADOS -->
+  <div class="content" id="tab-escalados">
+    <div class="chart-card">
+      <div class="chart-title">Casos que requieren atención del asesor</div>
+      <div id="escaladosList"><div class="empty">Sin casos escalados activos</div></div>
+    </div>
+  </div>
+
+  <!-- EN VIVO -->
+  <div class="content" id="tab-live">
+    <div class="chart-card">
+      <div class="chart-title">Log en tiempo real</div>
+      <button class="btn-sm" onclick="clearLog()" style="margin-bottom:12px;">Limpiar</button>
+      <div class="log-box" id="liveLog"><div class="empty">Esperando mensajes...</div></div>
     </div>
   </div>
 </div>
 
-<div class="toast-container" id="toastContainer"></div>
-
-<div class="layout">
-  <div class="sidebar">
-    <div class="sidebar-title">CONEXIÓN WHATSAPP</div>
-
-    <div class="account-block">
-      <div class="account-label">📱 ASESOR 1</div>
-      <div id="connectionArea1">
-        <div class="qr-card">
-          <div style="font-size:13px;color:var(--muted)">Cargando... ⏳</div>
-        </div>
-      </div>
-    </div>
-
-    <hr class="divider">
-
-    <div class="account-block">
-      <div class="account-label">📱 ASESOR 2</div>
-      <div id="connectionArea2">
-        <div class="qr-card">
-          <div style="font-size:13px;color:var(--muted)">Cargando... ⏳</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="sidebar-title" style="margin-top:16px">ESTADÍSTICAS</div>
-    <div class="stats">
-      <div class="stat-card">
-        <div class="stat-number" id="statConvs">0</div>
-        <div class="stat-label">CONVERSACIONES</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number" id="statMsgs">0</div>
-        <div class="stat-label">MENSAJES</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number" style="color:var(--red)" id="statEsc">0</div>
-        <div class="stat-label">ESCALADOS</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-number" style="color:var(--green)">24/7</div>
-        <div class="stat-label">DISPONIBLE</div>
-      </div>
-    </div>
-
-    <div class="sidebar-title">CASOS ESCALADOS 🚨</div>
-    <div id="escalationList">
-      <div class="empty" style="padding:16px;font-size:11px">Sin casos escalados ✅</div>
-    </div>
+<!-- CHAT PANEL -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <div><div class="chat-phone" id="chatPhone"></div><div style="font-size:10px;color:var(--muted);margin-top:2px;">Historial</div></div>
+    <button class="chat-close" onclick="closeChat()">✕</button>
   </div>
-
-  <div class="main">
-    <div class="main-title">CONVERSACIONES ACTIVAS</div>
-    <div class="conv-grid" id="convGrid">
-      <div class="empty" style="grid-column:1/-1">
-        <div style="font-size:32px">❄️</div>
-        NOVA esperando clientes...
-      </div>
-    </div>
-
-    <div class="main-title">LOG DE MENSAJES EN TIEMPO REAL</div>
-    <div class="log-container">
-      <div class="log-header">
-        <div style="font-size:12px;font-weight:700">💬 Flujo de conversaciones</div>
-        <button class="btn btn-cyan" onclick="refreshData()">↻ Actualizar</button>
-      </div>
-      <div class="log-scroll">
-        <div id="messageLog">
-          <div class="empty">📭 Sin mensajes aún</div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div class="chat-messages" id="chatMessages"></div>
 </div>
 
 <script>
-const socket = io();
-let allMessages = [];
-let escalatedPhones = new Set();
+let token = localStorage.getItem('praxo_token') || '';
+let allClients = [];
+let logItems = [];
 
-// Asesor 1
-socket.on('status_numero1', (data) => updateStatus(data, 1));
-socket.on('qr_numero1', (qr) => showQR(qr, 1));
-
-// Asesor 2
-socket.on('status_numero2', (data) => updateStatus(data, 2));
-socket.on('qr_numero2', (qr) => showQR(qr, 2));
-
-socket.on('new_message', (msg) => {
-  allMessages.unshift(msg);
-  renderMessageLog();
-  document.getElementById('statMsgs').textContent = allMessages.length;
-  refreshConversations();
-});
-socket.on('new_escalation', (data) => {
-  escalatedPhones.add(data.phone);
-  updateEscalationList();
-  showToast('escalation', '🚨 Caso Escalado', `Cliente ${data.phone} · ${data.account||''}`);
-  document.getElementById('statEsc').textContent = escalatedPhones.size;
-  refreshConversations();
-});
-socket.on('escalated_chat', (data) => {
-  escalatedPhones.add(data.phone);
-  updateEscalationList();
-  document.getElementById('statEsc').textContent = escalatedPhones.size;
-});
-socket.on('nova_reactivated', (data) => {
-  escalatedPhones.delete(data.phone);
-  updateEscalationList();
-  showToast('success', '✅ NOVA Reactivada', `Activa para ${data.phone}`);
-  document.getElementById('statEsc').textContent = escalatedPhones.size;
-  refreshConversations();
-});
-
-function updateStatus(data, num) {
-  const dot = document.getElementById('statusDot' + num);
-  const text = document.getElementById('statusText' + num);
-  if (data.connected) {
-    dot.className = 'dot connected';
-    text.textContent = `Asesor ${num} · ${data.phone || ''}`;
-    showConnected(data.phone, num);
+async function doLogin() {
+  const username = document.getElementById('loginUser').value;
+  const password = document.getElementById('loginPass').value;
+  const res = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  if (data.success) {
+    token = data.token;
+    localStorage.setItem('praxo_token', token);
+    showPanel();
   } else {
-    dot.className = 'dot disconnected';
-    text.textContent = `Asesor ${num}: ${data.message || 'Desconectado'}`;
+    document.getElementById('loginError').style.display = 'block';
   }
 }
 
-function showQR(qrData, num) {
-  document.getElementById('connectionArea' + num).innerHTML = `
-    <div class="qr-card">
-      <div style="font-size:11px;color:var(--cyan);font-weight:700;margin-bottom:8px">ESCANEA · ASESOR ${num} 📱</div>
-      <img src="${qrData}" alt="QR Asesor ${num}"/>
-      <div style="font-size:10px;color:var(--muted);margin-top:8px">WhatsApp → Dispositivos vinculados → Vincular dispositivo</div>
-    </div>`;
+function doLogout() {
+  localStorage.removeItem('praxo_token');
+  token = '';
+  document.getElementById('mainPanel').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
 }
 
-function showConnected(phone, num) {
-  document.getElementById('connectionArea' + num).innerHTML = `
-    <div class="connected-info">
-      <div style="font-size:20px;margin-bottom:6px">❄️</div>
-      <div class="phone">+${phone}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px">NOVA ACTIVA Y RESPONDIENDO</div>
-    </div>`;
+function showPanel() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainPanel').style.display = 'block';
+  loadStats();
+  initSocket();
 }
 
-function updateEscalationList() {
-  const list = document.getElementById('escalationList');
-  if (escalatedPhones.size === 0) {
-    list.innerHTML = '<div class="empty" style="padding:16px;font-size:11px">Sin casos escalados ✅</div>';
-    return;
-  }
-  list.innerHTML = Array.from(escalatedPhones).map(phone => `
-    <div class="escalation-item">
-      <div>
-        <div class="escalation-phone">+${phone}</div>
-        <div style="font-size:9px;color:var(--muted)">Asesor activo</div>
-      </div>
-      <button class="btn-reactivate" onclick="reactivateNova('${phone}')">↻ NOVA</button>
-    </div>`).join('');
+async function api(url) {
+  const res = await fetch(url, { headers: { 'x-auth-token': token } });
+  if (res.status === 401) { doLogout(); return null; }
+  return res.json();
 }
 
-function renderMessageLog() {
-  const container = document.getElementById('messageLog');
-  if (allMessages.length === 0) {
-    container.innerHTML = '<div class="empty">📭 Sin mensajes aún</div>';
-    return;
-  }
-  container.innerHTML = allMessages.slice(0, 50).map(msg => {
-    const isEsc = msg.type === 'outgoing' && msg.escalated;
-    const cls = isEsc ? 'escalated-msg' : msg.type;
-    const typeLabel = isEsc ? 'ESCALADO' : (msg.type === 'incoming' ? 'CLIENTE' : 'NOVA');
-    const typeCls = isEsc ? 'type-esc' : (msg.type === 'incoming' ? 'type-in' : 'type-out');
-    const accountTag = msg.account ? `<br><span style="color:var(--purple);font-size:8px">${msg.account}</span>` : '';
-    return `
-      <div class="log-item ${cls}">
-        <div class="log-time">${msg.timestamp}<br><span style="font-size:9px">${msg.date}</span></div>
-        <div class="log-phone">+${msg.phone}${accountTag}</div>
-        <div class="log-text">${esc(msg.message.substring(0,120))}${msg.message.length>120?'...':''}</div>
-        <div class="log-type"><span class="${typeCls}">${typeLabel}</span></div>
-      </div>`;
-  }).join('');
+function fmt(date) {
+  if (!date) return '—';
+  return new Date(date).toLocaleString('es-CO', { timeZone:'America/Bogota', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
-async function refreshConversations() {
-  try {
-    const res = await fetch('/api/conversations');
-    const convs = await res.json();
-    document.getElementById('statConvs').textContent = convs.length;
-    const grid = document.getElementById('convGrid');
-    if (convs.length === 0) {
-      grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div style="font-size:32px">❄️</div>NOVA esperando clientes...</div>';
-      return;
-    }
-    grid.innerHTML = convs.map(c => `
-      <div class="conv-card ${c.escalated ? 'escalated' : ''}">
-        <div class="conv-phone">+${c.phone}</div>
-        <div class="conv-preview">${esc(c.lastMessage || 'Sin mensajes')}</div>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <span class="badge badge-msgs">${c.messageCount} msgs</span>
-          ${c.escalated
-            ? `<span class="badge badge-escalated">🚨 ESCALADO</span>
-               <button class="btn-reactivate" onclick="reactivateNova('${c.phone}')">↻ Reactivar</button>`
-            : `<span class="badge badge-active">❄️ NOVA ACTIVA</span>`}
-        </div>
-      </div>`).join('');
-  } catch(e) {}
+function statusBadge(s) {
+  if (s === 'escalated') return '<span class="badge escalated">Escalado</span>';
+  if (s === 'active') return '<span class="badge active">Activo</span>';
+  return '<span class="badge new">Nuevo</span>';
 }
 
-async function refreshData() {
-  try {
-    const res = await fetch('/api/messages');
-    allMessages = await res.json();
-    renderMessageLog();
-    document.getElementById('statMsgs').textContent = allMessages.length;
-  } catch(e) {}
-  refreshConversations();
-  try {
-    const s = await fetch('/api/status');
-    const status = await s.json();
-    // Actualizar estado de ambos números
-    if (status.numero1) updateStatus({ connected: status.numero1.connected, phone: status.numero1.phone, message: status.numero1.connected ? 'Activo' : 'Desconectado' }, 1);
-    if (status.numero2) updateStatus({ connected: status.numero2.connected, phone: status.numero2.phone, message: status.numero2.connected ? 'Activo' : 'Desconectado' }, 2);
-    if (status.numero1?.qr) showQR(status.numero1.qr, 1);
-    if (status.numero2?.qr) showQR(status.numero2.qr, 2);
-    escalatedPhones = new Set(status.escalatedChats || []);
-    updateEscalationList();
-    document.getElementById('statEsc').textContent = escalatedPhones.size;
-  } catch(e) {}
+function showTab(name, el) {
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+  if (name === 'dashboard') loadStats();
+  if (name === 'clientes') loadClients();
+  if (name === 'conversaciones') loadConvs();
+  if (name === 'escalados') loadEscalados();
 }
 
-async function reactivateNova(phone) {
-  await fetch(`/api/reactivate/${phone}`, { method: 'POST' });
+async function loadStats() {
+  const [stats, clients] = await Promise.all([api('/api/stats'), api('/api/clients')]);
+  if (!stats || !clients) return;
+  document.getElementById('m-clientes').textContent = stats.totalClients ?? '—';
+  document.getElementById('m-hoy').textContent = stats.activeToday ?? '—';
+  document.getElementById('m-semana').textContent = stats.messagesThisWeek ?? '—';
+  document.getElementById('m-mes').textContent = stats.messagesThisMonth ?? '—';
+  document.getElementById('m-escalados').textContent = stats.escalatedTotal ?? '—';
+  const days = stats.messagesByDay || [];
+  const maxVal = Math.max(...days.map(d => d.count), 1);
+  const bc = document.getElementById('barChart');
+  bc.innerHTML = days.length === 0 ? '<div class="empty">Sin datos aún</div>' :
+    days.map(d => `<div class="bar-wrap"><div class="bar-val">${d.count}</div><div class="bar" style="height:${Math.round(d.count/maxVal*100)}%"></div><div class="bar-label">${d._id.slice(5)}</div></div>`).join('');
+  document.getElementById('recentClients').innerHTML = clients.slice(0,8).map(c => `
+    <tr><td style="font-family:monospace;color:var(--cyan);">${c.phone}</td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.lastMessage||'—'}</td>
+    <td>${statusBadge(c.status)}</td><td style="color:var(--muted);">${c.account||'—'}</td>
+    <td style="color:var(--muted);">${fmt(c.updatedAt)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">Sin clientes aún</td></tr>';
 }
 
-function showToast(type, title, body) {
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.innerHTML = `<div class="toast-title">${title}</div><div class="toast-body">${esc(body)}</div>`;
-  c.appendChild(t);
-  setTimeout(() => t.remove(), 6000);
+async function loadClients() {
+  const clients = await api('/api/clients');
+  if (!clients) return;
+  allClients = clients;
+  renderClients(clients);
 }
 
-function esc(text) {
-  return (text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+function renderClients(clients) {
+  document.getElementById('clientsTable').innerHTML = clients.map(c => `
+    <tr><td style="font-family:monospace;color:var(--cyan);">${c.phone}</td>
+    <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.lastMessage||'—'}</td>
+    <td>${statusBadge(c.status)}</td><td style="color:var(--muted);">${c.account||'—'}</td>
+    <td style="color:var(--muted);">${fmt(c.updatedAt)}</td>
+    <td><button class="btn-sm" onclick="openChat('${c.phone}')">Ver chat</button></td></tr>`).join('') ||
+    '<tr><td colspan="6" class="empty">Sin clientes aún</td></tr>';
 }
 
-refreshData();
-setInterval(refreshData, 15000);
+function filterClients() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  renderClients(allClients.filter(c => c.phone.includes(q) || (c.lastMessage||'').toLowerCase().includes(q)));
+}
+
+async function loadConvs() {
+  const convs = await api('/api/conversations');
+  if (!convs) return;
+  document.getElementById('convsTable').innerHTML = convs.map(c => `
+    <tr><td style="font-family:monospace;color:var(--cyan);">${c.phone}</td>
+    <td style="color:var(--purple);font-weight:700;">${c.messageCount}</td>
+    <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.lastMessage||'—'}</td>
+    <td>${c.escalated?'<span class="badge escalated">Escalado</span>':'<span class="badge active">Normal</span>'}</td>
+    <td><button class="btn-sm" onclick="openChat('${c.phone}')">Ver chat</button></td></tr>`).join('') ||
+    '<tr><td colspan="5" class="empty">Sin conversaciones aún</td></tr>';
+}
+
+async function loadEscalados() {
+  const status = await api('/api/status');
+  if (!status) return;
+  const escalados = status.escalatedChats || [];
+  const el = document.getElementById('escaladosList');
+  el.innerHTML = escalados.length === 0 ? '<div class="empty">✅ Sin casos escalados activos</div>' :
+    escalados.map(phone => `<div class="escalation-item">
+      <span style="font-family:monospace;color:var(--red);">${phone}</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sm" onclick="openChat('${phone}')">Ver chat</button>
+        <button class="btn-sm" onclick="reactivate('${phone}')">Reactivar NOVA</button>
+      </div></div>`).join('');
+}
+
+async function openChat(phone) {
+  document.getElementById('chatPhone').textContent = phone;
+  document.getElementById('chatMessages').innerHTML = '<div class="empty">Cargando...</div>';
+  document.getElementById('chatPanel').classList.add('open');
+  const msgs = await api('/api/messages/' + phone);
+  if (!msgs) return;
+  const el = document.getElementById('chatMessages');
+  el.innerHTML = msgs.length === 0 ? '<div class="empty">Sin mensajes guardados</div>' :
+    msgs.reverse().map(m => `<div class="msg ${m.type==='incoming'?'in':'out'}">${m.message}<div class="msg-time">${fmt(m.timestamp)}</div></div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function closeChat() { document.getElementById('chatPanel').classList.remove('open'); }
+
+async function reactivate(phone) {
+  await fetch('/api/reactivate/' + phone, { method:'POST', headers:{'x-auth-token':token} });
+  loadEscalados();
+}
+
+function clearLog() { logItems = []; renderLog(); }
+
+function renderLog() {
+  const el = document.getElementById('liveLog');
+  el.innerHTML = logItems.length === 0 ? '<div class="empty">Esperando mensajes...</div>' :
+    logItems.slice(0,50).map(m => `<div class="log-item">
+      <span class="log-tag ${m.type==='incoming'?'cliente':'nova'}">${m.type==='incoming'?'CLIENTE':'NOVA'}</span>
+      <span class="log-text">${m.phone} — ${m.message}</span>
+      <span class="log-time">${m.timestamp}</span></div>`).join('');
+}
+
+function initSocket() {
+  const socket = io();
+  socket.on('status_numero1', d => updateBadge('b1','Asesor 1',d));
+  socket.on('status_numero2', d => updateBadge('b2','Asesor 2',d));
+  socket.on('new_message', m => { logItems.unshift(m); if(document.getElementById('tab-live').classList.contains('active')) renderLog(); });
+  socket.on('new_escalation', () => { if(document.getElementById('tab-escalados').classList.contains('active')) loadEscalados(); });
+}
+
+function updateBadge(id, label, data) {
+  let el = document.getElementById(id);
+  if (!el) { el = document.createElement('div'); el.className='status-badge'; el.id=id; document.getElementById('statusBadges').appendChild(el); }
+  el.innerHTML = `<div class="dot ${data.connected?'on':'off'}"></div>${label}${data.phone?' · '+data.phone:''}`;
+}
+
+// Auto-login si ya tiene token
+if (token) { showPanel(); } 
 </script>
 </body>
 </html>
