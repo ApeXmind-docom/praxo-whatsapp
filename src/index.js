@@ -6,7 +6,7 @@ const { Server } = require('socket.io');
 const qrcode = require('qrcode');
 const path = require('path');
 const { getAIResponse, getConversations, getEscalatedChats, clearConversation, reactivateNova, escalateChat } = require('./ai');
-const { connectDB, saveClient, saveMessage, getClients } = require('./database');
+const { connectDB, saveClient, saveMessage, getClients, getStats, getMessages } = require('./database');
 
 const app = express();
 const httpServer = createServer(app);
@@ -34,13 +34,7 @@ function authMiddleware(req, res, next) {
   res.status(401).json({ error: 'No autorizado' });
 }
 
-app.use('/api/status', authMiddleware);
-app.use('/api/messages', authMiddleware);
-app.use('/api/clients', authMiddleware);
-app.use('/api/conversations', authMiddleware);
-app.use('/api/stats', authMiddleware);
-app.use('/api/reactivate', authMiddleware);
-app.use('/api/clear', authMiddleware);
+// Auth aplicado por ruta individualmente en cada endpoint
 app.use(express.static(path.join(__dirname, '../public')));
 
 const messageLog = [];
@@ -248,7 +242,7 @@ async function connectWhatsApp(accountKey) {
   });
 }
 
-app.get('/api/status', (req, res) => {
+app.get('/api/status', authMiddleware, (req, res) => {
   res.json({
     numero1: { connected: accounts.numero1.isConnected, phone: accounts.numero1.clientPhone, qr: accounts.numero1.qrImageData },
     numero2: { connected: accounts.numero2.isConnected, phone: accounts.numero2.clientPhone, qr: accounts.numero2.qrImageData },
@@ -259,7 +253,7 @@ app.get('/api/status', (req, res) => {
 
 app.get('/api/messages', (req, res) => { res.json(messageLog); });
 
-app.get('/api/conversations', (req, res) => {
+app.get('/api/conversations', authMiddleware, (req, res) => {
   const convs = getConversations();
   const escalated = getEscalatedChats();
   const result = Object.entries(convs).map(([phone, messages]) => ({
@@ -271,18 +265,18 @@ app.get('/api/conversations', (req, res) => {
   res.json(result);
 });
 
-app.get('/api/clients', async (req, res) => {
+app.get('/api/clients', authMiddleware, async (req, res) => {
   const clients = await getClients();
   res.json(clients);
 });
 
-app.post('/api/reactivate/:phone', (req, res) => {
+app.post('/api/reactivate/:phone', authMiddleware, (req, res) => {
   reactivateNova(req.params.phone);
   io.emit('nova_reactivated', { phone: req.params.phone });
   res.json({ success: true });
 });
 
-app.post('/api/clear/:phone', (req, res) => {
+app.post('/api/clear/:phone', authMiddleware, (req, res) => {
   clearConversation(req.params.phone);
   res.json({ success: true });
 });
