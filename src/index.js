@@ -6,7 +6,7 @@ const { Server } = require('socket.io');
 const qrcode = require('qrcode');
 const path = require('path');
 const { getAIResponse, getConversations, getEscalatedChats, clearConversation, reactivateNova, escalateChat } = require('./ai');
-const { connectDB, saveClient, saveMessage, getClients, getStats, getMessages } = require('./database');
+const { connectDB, saveClient, saveMessage, getClients, getStats, getMessages, setEscalated, isEscalated, getAllEscalated } = require('./database');
 
 const app = express();
 const httpServer = createServer(app);
@@ -263,12 +263,12 @@ async function connectWhatsApp(accountKey) {
   });
 }
 
-app.get('/api/status', authMiddleware, (req, res) => {
+app.get('/api/status', authMiddleware, async (req, res) => {
   res.json({
     numero1: { connected: accounts.numero1.isConnected, phone: accounts.numero1.clientPhone, qr: accounts.numero1.qrImageData },
     numero2: { connected: accounts.numero2.isConnected, phone: accounts.numero2.clientPhone, qr: accounts.numero2.qrImageData },
     totalConversations: Object.keys(getConversations()).length,
-    escalatedChats: Object.entries(getEscalatedChats()).filter(([,v]) => v).map(([k]) => k),
+    escalatedChats: await getAllEscalated(),
   });
 });
 
@@ -291,8 +291,9 @@ app.get('/api/clients', authMiddleware, async (req, res) => {
   res.json(clients);
 });
 
-app.post('/api/reactivate/:phone', authMiddleware, (req, res) => {
+app.post('/api/reactivate/:phone', authMiddleware, async (req, res) => {
   reactivateNova(req.params.phone);
+  await setEscalated(req.params.phone, false);
   io.emit('nova_reactivated', { phone: req.params.phone });
   res.json({ success: true });
 });
