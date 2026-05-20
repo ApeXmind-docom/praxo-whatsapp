@@ -120,22 +120,43 @@ async function connectWhatsApp(accountKey) {
 
       if (!messageText) continue;
 
-      // ── MENSAJE DEL ASESOR: fromMe O número de asesor escribiendo a cliente ──
+      // ── MENSAJE DEL ASESOR: fromMe O número de asesor ──
       const esAsesor = message.key.fromMe || NUMEROS_ASESORES.some(n => phoneNumber.includes(n));
 
       if (esAsesor) {
         if (message.key.fromMe) {
-          // El asesor respondió desde su teléfono → silenciar NOVA
-          if (messageText.trim().toUpperCase() === 'NOVA') {
+          const cmd = messageText.trim().toUpperCase();
+
+          if (cmd === 'NOVA') {
+            // Reactivar NOVA
             reactivateNova(conversationId);
+            await setEscalated(conversationId, false);
             console.log('✅ [' + account.label + '] NOVA reactivada para ' + phoneNumber);
-          } else {
+
+          } else if (cmd === 'PAUSA') {
+            // Asesor pausa NOVA manualmente — 100% confiable
             escalateChat(conversationId);
+            await setEscalated(conversationId, true);
+            console.log('⏸️  [' + account.label + '] PAUSA activada para ' + phoneNumber);
+            io.emit('escalated_chat', { phone: phoneNumber, account: account.label });
+
+          } else {
+            // Asesor respondió normalmente → silenciar NOVA automáticamente
+            escalateChat(conversationId);
+            await setEscalated(conversationId, true);
             console.log('🤫 [' + account.label + '] Asesor intervino en ' + phoneNumber + ' — NOVA en silencio');
             io.emit('escalated_chat', { phone: phoneNumber, account: account.label });
           }
         }
-        // En cualquier caso, si es asesor → no procesar con NOVA
+        // Si es número de asesor escribiendo → ignorar siempre
+        continue;
+      }
+
+      // ── VERIFICAR SI ESTÁ ESCALADO EN MONGODB (sobrevive reinicios) ──
+      const escaladoEnDB = await isEscalated(conversationId);
+      if (escaladoEnDB) {
+        escalateChat(conversationId); // sincronizar RAM
+        console.log('🔇 [' + account.label + '] [' + phoneNumber + '] Escalado en DB — NOVA en silencio');
         continue;
       }
 
