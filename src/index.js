@@ -202,6 +202,27 @@ async function connectWhatsApp(accountKey) {
       }
 
       try {
+        // Verificar si el cliente pide imagen o catálogo
+        const msgLower = messageText.toLowerCase();
+        const pideImagen = msgLower.includes('imagen') || msgLower.includes('foto') || msgLower.includes('ubicación') || msgLower.includes('ubicacion') || msgLower.includes('información') || msgLower.includes('informacion') || msgLower.includes('presentacion') || msgLower.includes('presentación');
+        const pideCatalogo = msgLower.includes('catalogo') || msgLower.includes('catálogo') || msgLower.includes('pdf') || msgLower.includes('ficha') || msgLower.includes('brochure');
+
+        if (pideImagen) {
+          await account.sock.sendMessage(message.key.remoteJid, {
+            image: { url: 'https://praxo-whatsapp.onrender.com/refriadvanced-info.jpg' },
+            caption: '¡Aquí te comparto nuestra información! 😊'
+          });
+        }
+
+        if (pideCatalogo) {
+          await account.sock.sendMessage(message.key.remoteJid, {
+            document: { url: 'https://praxo-whatsapp.onrender.com/catalogo-compressed.pdf' },
+            mimetype: 'application/pdf',
+            fileName: 'Catalogo-Refriadvanced.pdf',
+            caption: '¡Aquí está nuestro catálogo! 📄'
+          });
+        }
+
         await account.sock.sendMessage(message.key.remoteJid, { text: novaResponse });
 
         await saveMessage({
@@ -315,6 +336,9 @@ io.on('connection', (socket) => {
     }
   }
 });
+
+// Servir archivos estáticos de assets
+// Archivos estáticos servidos desde public/
 
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, async () => {
