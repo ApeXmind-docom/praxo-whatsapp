@@ -152,15 +152,15 @@ async function connectWhatsApp(accountKey) {
         continue;
       }
 
-      // ── VERIFICAR SI ESTÁ ESCALADO EN MONGODB (sobrevive reinicios) ──
+      // ── MENSAJE DE CLIENTE ───────────────────────────────────────────────
+      // Doble verificación: RAM + MongoDB antes de responder
       const escaladoEnDB = await isEscalated(conversationId);
       if (escaladoEnDB) {
         escalateChat(conversationId); // sincronizar RAM
-        console.log('🔇 [' + account.label + '] [' + phoneNumber + '] Escalado en DB — NOVA en silencio');
+        console.log('🔇 [' + account.label + '] [' + phoneNumber + '] Escalado — NOVA en silencio');
         continue;
       }
 
-      // ── MENSAJE DE CLIENTE ───────────────────────────────────────────────
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
       console.log('📩 [' + account.label + '] [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
 
