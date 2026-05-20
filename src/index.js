@@ -202,24 +202,20 @@ async function connectWhatsApp(accountKey) {
       }
 
       try {
-        // Verificar si el cliente pide imagen o catálogo
-        const msgLower = messageText.toLowerCase();
-        const pideImagen = msgLower.includes('imagen') || msgLower.includes('foto') || msgLower.includes('ubicación') || msgLower.includes('ubicacion') || msgLower.includes('información') || msgLower.includes('informacion') || msgLower.includes('presentacion') || msgLower.includes('presentación');
-        const pideCatalogo = msgLower.includes('catalogo') || msgLower.includes('catálogo') || msgLower.includes('pdf') || msgLower.includes('ficha') || msgLower.includes('brochure');
+        // Enviar imagen y catálogo solo en el PRIMER mensaje del cliente
+        const conversaciones = getConversations();
+        const esNuevaConversacion = !conversaciones[conversationId] || conversaciones[conversationId].length <= 1;
 
-        if (pideImagen) {
+        if (esNuevaConversacion) {
           await account.sock.sendMessage(message.key.remoteJid, {
             image: { url: 'https://praxo-whatsapp.onrender.com/refriadvanced-info.jpg' },
-            caption: '¡Aquí te comparto nuestra información! 😊'
+            caption: '¡Bienvenido a Refriadvanced! 👋'
           });
-        }
-
-        if (pideCatalogo) {
           await account.sock.sendMessage(message.key.remoteJid, {
             document: { url: 'https://praxo-whatsapp.onrender.com/catalogo-compressed.pdf' },
             mimetype: 'application/pdf',
             fileName: 'Catalogo-Refriadvanced.pdf',
-            caption: '¡Aquí está nuestro catálogo! 📄'
+            caption: 'Te compartimos nuestro catálogo 📄'
           });
         }
 
