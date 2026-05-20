@@ -122,4 +122,41 @@ async function getMessages(phone, limit = 50) {
   }
 }
 
-module.exports = { connectDB, saveClient, saveMessage, getClients, getStats, getMessages };
+
+async function setEscalated(conversationId, value) {
+  try {
+    const database = await connectDB();
+    if (!database) return;
+    await database.collection('escalated').updateOne(
+      { conversationId },
+      { $set: { conversationId, escalated: value, updatedAt: new Date() } },
+      { upsert: true }
+    );
+  } catch (error) {
+    console.error('Error guardando escalado:', error.message);
+  }
+}
+
+async function isEscalated(conversationId) {
+  try {
+    const database = await connectDB();
+    if (!database) return false;
+    const doc = await database.collection('escalated').findOne({ conversationId });
+    return doc ? doc.escalated : false;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function getAllEscalated() {
+  try {
+    const database = await connectDB();
+    if (!database) return [];
+    const docs = await database.collection('escalated').find({ escalated: true }).toArray();
+    return docs.map(d => d.conversationId);
+  } catch (error) {
+    return [];
+  }
+}
+
+module.exports = { connectDB, saveClient, saveMessage, getClients, getStats, getMessages, setEscalated, isEscalated, getAllEscalated };
