@@ -10,12 +10,8 @@ const conversations = {};
 const escalatedChats = {};
 
 async function getAIResponse(phoneNumber, userMessage) {
+  // Si está escalado → silencio total, sin importar qué escriba
   if (escalatedChats[phoneNumber]) {
-    if (userMessage.trim().toUpperCase() === 'NOVA') {
-      escalatedChats[phoneNumber] = false;
-      conversations[phoneNumber] = [];
-      return '✅ NOVA reactivada. Lista para atender al próximo cliente.';
-    }
     return null;
   }
 
