@@ -208,11 +208,11 @@ async function connectWhatsApp(accountKey) {
 
         if (esNuevaConversacion) {
           await account.sock.sendMessage(message.key.remoteJid, {
-            image: { url: 'https://praxo-whatsapp.onrender.com/refriadvanced-info.jpg' },
+            image: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/refriadvanced-info.jpg' },
             caption: '¡Bienvenido a Refriadvanced! 👋'
           });
           await account.sock.sendMessage(message.key.remoteJid, {
-            document: { url: 'https://praxo-whatsapp.onrender.com/catalogo-compressed.pdf' },
+            document: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/catalogo-compressed.pdf' },
             mimetype: 'application/pdf',
             fileName: 'Catalogo-Refriadvanced.pdf',
             caption: 'Te compartimos nuestro catálogo 📄'
