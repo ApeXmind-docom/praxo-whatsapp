@@ -202,20 +202,25 @@ async function connectWhatsApp(accountKey) {
       }
 
       try {
-        // Enviar imagen y catálogo solo en el PRIMER mensaje del cliente
+        // Enviar catálogo, web y ubicación solo en el PRIMER mensaje del cliente
         const conversaciones = getConversations();
         const esNuevaConversacion = !conversaciones[conversationId] || conversaciones[conversationId].length <= 1;
 
         if (esNuevaConversacion) {
-          await account.sock.sendMessage(message.key.remoteJid, {
-            image: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/refriadvanced-info.jpg' },
-            caption: '¡Bienvenido a Refriadvanced! 👋'
-          });
+          // 1. Catálogo PDF
           await account.sock.sendMessage(message.key.remoteJid, {
             document: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/catalogo-compressed.pdf' },
             mimetype: 'application/pdf',
             fileName: 'Catalogo-Refriadvanced.pdf',
-            caption: 'Te compartimos nuestro catálogo 📄'
+            caption: '📄 Te compartimos nuestro catálogo con todos los equipos y precios'
+          });
+          // 2. Link de la web
+          await account.sock.sendMessage(message.key.remoteJid, {
+            text: '🌐 Visita nuestra página web: www.refriadvanced.com'
+          });
+          // 3. Ubicación
+          await account.sock.sendMessage(message.key.remoteJid, {
+            location: { degreesLatitude: 4.6097, degreesLongitude: -74.0817, name: 'Refriadvanced SAS', address: 'Bogotá, Colombia' }
           });
         }
 
