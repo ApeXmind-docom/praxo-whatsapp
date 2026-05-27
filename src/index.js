@@ -218,9 +218,9 @@ async function connectWhatsApp(accountKey) {
           await account.sock.sendMessage(message.key.remoteJid, {
             text: '🌐 Visita nuestra página web: www.refriadvanced.com'
           });
-          // 3. Ubicación
+          // 3. Dirección
           await account.sock.sendMessage(message.key.remoteJid, {
-            location: { degreesLatitude: 4.6097, degreesLongitude: -74.0817, name: 'Refriadvanced SAS', address: 'Bogotá, Colombia' }
+            text: '📍 Nuestra dirección: Cra 52C #34-28 Sur, Barrio Alquería, Bogotá'
           });
         }
 
