@@ -90,8 +90,11 @@ PRODUCTOS Y PRECIOS:
 6. NEVERAS AUTOSERVICIO
    Con cortina importada termofil. 1.00m a 2.50m de frente. Precio: según asesor.
 
-7. GÓNDOLAS CARNES Y PESCADOS
-   Medidas a la necesidad. Precio: según asesor.
+7. NEVERAS TIPO GÓNDOLA (Solo refrigeración)
+   Fabricadas en acero 4.30 calibre #22. Con bodega tiene costo adicional.
+   - 1.00m largo × 1.10m fondo × 1.35m alto → $5.500.000
+   - 1.50m largo × 1.10m fondo × 1.35m alto → $7.800.000
+   - 2.00m largo × 1.10m fondo × 1.35m alto → $9.800.000
 
 8. COCINAS INDUSTRIALES
    Requiere visita técnica. Precio: según asesor.
