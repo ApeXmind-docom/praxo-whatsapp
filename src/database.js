@@ -159,4 +159,15 @@ async function getAllEscalated() {
   }
 }
 
-module.exports = { connectDB, saveClient, saveMessage, getClients, getStats, getMessages, setEscalated, isEscalated, getAllEscalated };
+async function checkClientExists(phone) {
+  try {
+    const database = await connectDB();
+    if (!database) return false;
+    const doc = await database.collection('clients').findOne({ phone });
+    return !!doc;
+  } catch (error) {
+    return false;
+  }
+}
+
+module.exports = { connectDB, saveClient, saveMessage, getClients, getStats, getMessages, setEscalated, isEscalated, getAllEscalated, checkClientExists };
