@@ -6,7 +6,7 @@ const { Server } = require('socket.io');
 const qrcode = require('qrcode');
 const path = require('path');
 const { getAIResponse, getConversations, getEscalatedChats, clearConversation, reactivateNova, escalateChat } = require('./ai');
-const { connectDB, saveClient, saveMessage, getClients, getStats, getMessages, setEscalated, isEscalated, getAllEscalated } = require('./database');
+const { connectDB, saveClient, saveMessage, getClients, getStats, getMessages, setEscalated, isEscalated, getAllEscalated, checkClientExists } = require('./database');
 
 const app = express();
 const httpServer = createServer(app);
@@ -202,9 +202,9 @@ async function connectWhatsApp(accountKey) {
       }
 
       try {
-        // Enviar catálogo, web y ubicación solo en el PRIMER mensaje del cliente
-        const conversaciones = getConversations();
-        const esNuevaConversacion = !conversaciones[conversationId] || conversaciones[conversationId].length <= 1;
+        // Enviar catálogo, web y dirección solo si es cliente NUEVO (verificado en MongoDB)
+        const clienteExistente = await checkClientExists(phoneNumber);
+        const esNuevaConversacion = !clienteExistente;
 
         if (esNuevaConversacion) {
           // 1. Catálogo PDF
