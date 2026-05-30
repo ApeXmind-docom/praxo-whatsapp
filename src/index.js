@@ -164,6 +164,10 @@ async function connectWhatsApp(accountKey) {
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
       console.log('📩 [' + account.label + '] [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
 
+      // Verificar si es cliente nuevo ANTES de guardarlo
+      const esClienteNuevo = !(await checkClientExists(phoneNumber));
+      console.log('👤 [' + phoneNumber + '] Es cliente nuevo: ' + esClienteNuevo);
+
       await saveClient({
         phone: phoneNumber,
         lastMessage: messageText,
@@ -202,11 +206,8 @@ async function connectWhatsApp(accountKey) {
       }
 
       try {
-        // Enviar catálogo, web y dirección solo si es cliente NUEVO (verificado en MongoDB)
-        const clienteExistente = await checkClientExists(phoneNumber);
-        console.log('👤 [' + phoneNumber + '] Cliente existente en DB: ' + clienteExistente);
-
-        if (!clienteExistente) {
+        // Enviar catálogo, web y dirección solo si es cliente NUEVO
+        if (esClienteNuevo) {
           console.log('🆕 Cliente nuevo — enviando catálogo, web y dirección');
           try {
             // 1. Catálogo PDF
