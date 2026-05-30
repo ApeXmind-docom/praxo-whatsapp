@@ -204,24 +204,31 @@ async function connectWhatsApp(accountKey) {
       try {
         // Enviar catálogo, web y dirección solo si es cliente NUEVO (verificado en MongoDB)
         const clienteExistente = await checkClientExists(phoneNumber);
-        const esNuevaConversacion = !clienteExistente;
+        console.log('👤 [' + phoneNumber + '] Cliente existente en DB: ' + clienteExistente);
 
-        if (esNuevaConversacion) {
-          // 1. Catálogo PDF
-          await account.sock.sendMessage(message.key.remoteJid, {
-            document: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/catalogo-compressed.pdf' },
-            mimetype: 'application/pdf',
-            fileName: 'Catalogo-Refriadvanced.pdf',
-            caption: '📄 Te compartimos nuestro catálogo con todos los equipos y precios'
-          });
-          // 2. Link de la web
-          await account.sock.sendMessage(message.key.remoteJid, {
-            text: '🌐 Visita nuestra página web: www.refriadvanced.com'
-          });
-          // 3. Dirección
-          await account.sock.sendMessage(message.key.remoteJid, {
-            text: '📍 Nuestra dirección: Cra 52C #34-28 Sur, Barrio Alquería, Bogotá'
-          });
+        if (!clienteExistente) {
+          console.log('🆕 Cliente nuevo — enviando catálogo, web y dirección');
+          try {
+            // 1. Catálogo PDF
+            await account.sock.sendMessage(message.key.remoteJid, {
+              document: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/catalogo-compressed.pdf' },
+              mimetype: 'application/pdf',
+              fileName: 'Catalogo-Refriadvanced.pdf',
+              caption: '📄 Te compartimos nuestro catálogo con todos los equipos y precios'
+            });
+            console.log('✅ PDF enviado');
+            // 2. Link de la web
+            await account.sock.sendMessage(message.key.remoteJid, {
+              text: '🌐 Visita nuestra página web: www.refriadvanced.com'
+            });
+            // 3. Dirección
+            await account.sock.sendMessage(message.key.remoteJid, {
+              text: '📍 Nuestra dirección: Cra 52C #34-28 Sur, Barrio Alquería, Bogotá'
+            });
+            console.log('✅ Web y dirección enviadas');
+          } catch (mediaError) {
+            console.error('❌ Error enviando catálogo:', mediaError.message);
+          }
         }
 
         await account.sock.sendMessage(message.key.remoteJid, { text: novaResponse });
