@@ -1,4 +1,28 @@
 require('dotenv').config();
+const OpenAI = require('openai');
+const fs = require('fs');
+const https = require('https');
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Transcribir audio con Whisper
+async function transcribirAudio(audioBuffer, mimetype) {
+  try {
+    const tempPath = '/tmp/audio_' + Date.now() + '.ogg';
+    fs.writeFileSync(tempPath, audioBuffer);
+    const transcripcion = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(tempPath),
+      model: 'whisper-1',
+      language: 'es',
+    });
+    fs.unlinkSync(tempPath);
+    console.log('🎤 Audio transcrito: ' + transcripcion.text);
+    return transcripcion.text;
+  } catch (error) {
+    console.error('❌ Error transcribiendo audio:', error.message);
+    return null;
+  }
+}
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const express = require('express');
 const { createServer } = require('http');
@@ -114,9 +138,32 @@ async function connectWhatsApp(accountKey) {
       const phoneNumber = message.key.remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '');
       const conversationId = accountKey + '_' + phoneNumber;
 
-      const messageText = message.message?.conversation ||
+      let messageText = message.message?.conversation ||
         message.message?.extendedTextMessage?.text ||
         message.message?.imageMessage?.caption || '';
+
+      // Detectar y transcribir mensajes de audio
+      const audioMsg = message.message?.audioMessage || message.message?.pttMessage;
+      if (audioMsg && !messageText) {
+        try {
+          console.log('🎙️ Audio recibido — transcribiendo...');
+          const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+          const audioBuffer = await downloadMediaMessage(message, 'buffer', {});
+          const transcripcion = await transcribirAudio(audioBuffer, audioMsg.mimetype);
+          if (transcripcion) {
+            messageText = transcripcion;
+            console.log('✅ Audio → texto: ' + messageText);
+          } else {
+            await account.sock.sendMessage(message.key.remoteJid, {
+              text: 'Disculpa, no pude escuchar bien tu mensaje. ¿Me lo puedes escribir? 😊'
+            });
+            continue;
+          }
+        } catch (audioError) {
+          console.error('❌ Error procesando audio:', audioError.message);
+          continue;
+        }
+      }
 
       if (!messageText) continue;
 
