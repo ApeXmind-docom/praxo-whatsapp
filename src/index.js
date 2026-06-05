@@ -142,32 +142,8 @@ async function connectWhatsApp(accountKey) {
         message.message?.extendedTextMessage?.text ||
         message.message?.imageMessage?.caption || '';
 
-      // Detectar y transcribir mensajes de audio
-      const audioMsg = message.message?.audioMessage || message.message?.pttMessage;
-      if (audioMsg && !messageText) {
-        try {
-          console.log('🎙️ Audio recibido — transcribiendo...');
-          const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-          const audioBuffer = await downloadMediaMessage(message, 'buffer', {});
-          const transcripcion = await transcribirAudio(audioBuffer, audioMsg.mimetype);
-          if (transcripcion) {
-            messageText = transcripcion;
-            console.log('✅ Audio → texto: ' + messageText);
-          } else {
-            await account.sock.sendMessage(message.key.remoteJid, {
-              text: 'Disculpa, no pude escuchar bien tu mensaje. ¿Me lo puedes escribir? 😊'
-            });
-            continue;
-          }
-        } catch (audioError) {
-          console.error('❌ Error procesando audio:', audioError.message);
-          continue;
-        }
-      }
-
-      if (!messageText) continue;
-
       // ── MENSAJE DEL ASESOR: fromMe O número de asesor ──
+      // IMPORTANTE: filtrar asesores ANTES de procesar audios
       const esAsesor = message.key.fromMe || NUMEROS_ASESORES.some(n => phoneNumber.includes(n));
 
       if (esAsesor) {
@@ -210,6 +186,31 @@ async function connectWhatsApp(accountKey) {
 
       const timestamp = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
       console.log('📩 [' + account.label + '] [' + timestamp + '] ' + phoneNumber + ': ' + messageText);
+
+      // Detectar y transcribir mensajes de audio — SOLO de clientes
+      const audioMsg = message.message?.audioMessage || message.message?.pttMessage;
+      if (audioMsg && !messageText) {
+        try {
+          console.log('🎙️ Audio de cliente recibido — transcribiendo...');
+          const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+          const audioBuffer = await downloadMediaMessage(message, 'buffer', {});
+          const transcripcion = await transcribirAudio(audioBuffer, audioMsg.mimetype);
+          if (transcripcion) {
+            messageText = transcripcion;
+            console.log('✅ Audio → texto: ' + messageText);
+          } else {
+            await account.sock.sendMessage(message.key.remoteJid, {
+              text: 'Disculpa, no pude escuchar bien tu mensaje. ¿Me lo puedes escribir? 😊'
+            });
+            continue;
+          }
+        } catch (audioError) {
+          console.error('❌ Error procesando audio:', audioError.message);
+          continue;
+        }
+      }
+
+      if (!messageText) continue;
 
       // Verificar si es cliente nuevo ANTES de guardarlo
       const esClienteNuevo = !(await checkClientExists(phoneNumber));
