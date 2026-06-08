@@ -258,14 +258,7 @@ async function connectWhatsApp(accountKey) {
         if (esClienteNuevo) {
           console.log('🆕 Cliente nuevo — enviando catálogo, web y dirección');
           try {
-            // 1. Audio de bienvenida (nota de voz)
-            await account.sock.sendMessage(message.key.remoteJid, {
-              audio: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/bienvenida.ogg' },
-              mimetype: 'audio/ogg; codecs=opus',
-              ptt: true
-            });
-            console.log('✅ Audio de bienvenida enviado');
-            // 2. Catálogo PDF
+            // 1. Catálogo PDF
             await account.sock.sendMessage(message.key.remoteJid, {
               document: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/catalogo-compressed.pdf' },
               mimetype: 'application/pdf',
@@ -273,11 +266,11 @@ async function connectWhatsApp(accountKey) {
               caption: '📄 Te compartimos nuestro catálogo con todos los equipos y precios'
             });
             console.log('✅ PDF enviado');
-            // 3. Link de la web
+            // 2. Link de la web
             await account.sock.sendMessage(message.key.remoteJid, {
               text: '🌐 Visita nuestra página web: www.refriadvanced.com'
             });
-            // 4. Dirección
+            // 3. Dirección
             await account.sock.sendMessage(message.key.remoteJid, {
               text: '📍 Nuestra dirección: Cra 52C #34-28 Sur, Barrio Alquería, Bogotá'
             });
@@ -287,7 +280,22 @@ async function connectWhatsApp(accountKey) {
           }
         }
 
+        // Saludo de NOVA (texto)
         await account.sock.sendMessage(message.key.remoteJid, { text: novaResponse });
+
+        // Audio de bienvenida al final — solo para clientes nuevos
+        if (esClienteNuevo) {
+          try {
+            await account.sock.sendMessage(message.key.remoteJid, {
+              audio: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/bienvenida.ogg' },
+              mimetype: 'audio/ogg; codecs=opus',
+              ptt: true
+            });
+            console.log('✅ Audio de bienvenida enviado');
+          } catch (audioError) {
+            console.error('❌ Error enviando audio:', audioError.message);
+          }
+        }
 
         await saveMessage({
           phone: phoneNumber,
