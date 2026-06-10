@@ -395,6 +395,26 @@ function initSocket() {
   socket.on('status_numero2', d => updateBadge('b2','Asesor 2',d));
   socket.on('new_message', m => { logItems.unshift(m); if(document.getElementById('tab-live').classList.contains('active')) renderLog(); });
   socket.on('new_escalation', () => { if(document.getElementById('tab-escalados').classList.contains('active')) loadEscalados(); });
+  socket.on('qr_numero1', data => showQR('qr1', 'Asesor 1', data));
+  socket.on('qr_numero2', data => showQR('qr2', 'Asesor 2', data));
+}
+
+function showQR(id, label, data) {
+  let container = document.getElementById('qr-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'qr-container';
+    container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;gap:40px;z-index:9999;flex-wrap:wrap;padding:20px;';
+    document.body.appendChild(container);
+  }
+  let box = document.getElementById(id);
+  if (!box) {
+    box = document.createElement('div');
+    box.id = id;
+    box.style.cssText = 'background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:24px;text-align:center;';
+    container.appendChild(box);
+  }
+  box.innerHTML = `<p style="color:#aaa;font-size:13px;margin:0 0 12px;font-family:monospace;">📱 ${label} — Escanea con WhatsApp</p><img src="${data}" style="width:220px;height:220px;border-radius:8px;"/><p style="color:#555;font-size:11px;margin:10px 0 0;">El QR expira en 20 seg — se actualiza solo</p><button onclick="document.getElementById('qr-container').remove()" style="margin-top:12px;background:#333;color:#aaa;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;">Cerrar</button>`;
 }
 
 function updateBadge(id, label, data) {
