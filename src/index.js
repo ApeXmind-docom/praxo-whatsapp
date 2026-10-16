@@ -85,17 +85,44 @@ const accounts = {
   },
 };
 
+const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function connectWhatsApp(accountKey) {
   const account = accounts[accountKey];
   const { state, saveCreds } = await useMultiFileAuthState(account.sessionPath);
   const { version } = await fetchLatestBaileysVersion();
+
+  // Guarda los mensajes enviados para poder reenviarlos si el celular del
+  // cliente no logra descifrarlos ("Esperando mensaje...")
+  const sentStore = account.sentStore || (account.sentStore = new Map());
+  const retryCache = account.retryCache || (account.retryCache = (() => {
+    const m = new Map();
+    return {
+      get: (k) => m.get(k),
+      set: (k, v) => { m.set(k, v); },
+      del: (k) => { m.delete(k); },
+      flushAll: () => m.clear(),
+    };
+  })());
 
   account.sock = makeWASocket({
     version,
     auth: state,
     printQRInTerminal: false,
     logger: require('pino')({ level: 'silent' }),
+    msgRetryCounterCache: retryCache,
+    getMessage: async (key) => sentStore.get(key.id)?.message || undefined,
   });
+
+  const originalSend = account.sock.sendMessage.bind(account.sock);
+  account.sock.sendMessage = async (...args) => {
+    const sent = await originalSend(...args);
+    if (sent?.key?.id) {
+      sentStore.set(sent.key.id, sent);
+      if (sentStore.size > 500) sentStore.delete(sentStore.keys().next().value);
+    }
+    return sent;
+  };
 
   account.sock.ev.on('creds.update', saveCreds);
 
@@ -258,6 +285,8 @@ async function connectWhatsApp(accountKey) {
         if (esClienteNuevo) {
           console.log('🆕 Cliente nuevo — enviando catálogo, web y dirección');
           try {
+            await account.sock.sendPresenceUpdate('composing', message.key.remoteJid);
+            await pausa(2000);
             // 1. Catálogo PDF
             await account.sock.sendMessage(message.key.remoteJid, {
               document: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/catalogo-compressed.pdf' },
@@ -266,10 +295,12 @@ async function connectWhatsApp(accountKey) {
               caption: '📄 Te compartimos nuestro catálogo con todos los equipos y precios'
             });
             console.log('✅ PDF enviado');
+            await pausa(2500);
             // 2. Link de la web
             await account.sock.sendMessage(message.key.remoteJid, {
               text: '🌐 Visita nuestra página web: www.refriadvanced.com'
             });
+            await pausa(2000);
             // 3. Dirección
             await account.sock.sendMessage(message.key.remoteJid, {
               text: '📍 Nuestra dirección: Cra 52C #34-28 Sur, Barrio Alquería, Bogotá'
@@ -280,12 +311,14 @@ async function connectWhatsApp(accountKey) {
           }
         }
 
+        if (esClienteNuevo) await pausa(2500);
         // Saludo de NOVA (texto)
         await account.sock.sendMessage(message.key.remoteJid, { text: novaResponse });
 
         // Audio de bienvenida al final — solo para clientes nuevos
         if (esClienteNuevo) {
           try {
+            await pausa(2500);
             await account.sock.sendMessage(message.key.remoteJid, {
               audio: { url: 'https://raw.githubusercontent.com/ApeXmind-docom/praxo-whatsapp/main/public/bienvenida.ogg' },
               mimetype: 'audio/ogg; codecs=opus',
